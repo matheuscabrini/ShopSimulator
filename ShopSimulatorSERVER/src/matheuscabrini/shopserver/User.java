@@ -14,7 +14,9 @@ public class User extends Record {
 	private String passHash;
 	private String passSalt;
 	
-	public 
+	public User() {
+		
+	}
 
 	@Override
 	String[] getData() {
