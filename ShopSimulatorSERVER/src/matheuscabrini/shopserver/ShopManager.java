@@ -54,7 +54,7 @@ public class ShopManager {
 	
 	/*
 	 * 
-	 * ***** MÉTODOS PRIVADOS ******** 
+	 * ***** MÃ‰TODOS PRIVADOS ******** 
 	 * 
 	 */
 	
@@ -76,11 +76,11 @@ public class ShopManager {
 	
 	// Passa os dados do arquivo ao programa
 	@SuppressWarnings("unused")
-	private void getRecordsFromFile(URL bookFileName, ArrayList<? extends Record> list) {
+	private void getRecordsFromFile(URL fileName, ArrayList<? extends Record> list) {
 		CSVReader reader;
 		String[] data;
 		try {
-			reader = new CSVReader(new FileReader(bookFileName.getPath()), ',', 
+			reader = new CSVReader(new FileReader(fileName.getPath()), ',', 
 				CSVWriter.NO_QUOTE_CHARACTER, 
 				CSVWriter.NO_ESCAPE_CHARACTER);
 			for (Record rec : list) {
