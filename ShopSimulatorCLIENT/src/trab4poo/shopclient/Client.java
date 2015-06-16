@@ -1,4 +1,4 @@
-package matheuscabrini.shopclient;
+package trab4poo.shopclient;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;

@@ -1,4 +1,4 @@
-package matheuscabrini.shopserver;
+package trab4poo.shopserver;
 
 // Classe abstrata de registro cujos código e métodos são padrões para Book, User e Rental.
 // Serve para deixar mais eficiente o processo de escrita e leitura de dados

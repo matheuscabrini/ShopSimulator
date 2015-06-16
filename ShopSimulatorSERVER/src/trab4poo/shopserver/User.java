@@ -1,4 +1,4 @@
-package matheuscabrini.shopserver;
+package trab4poo.shopserver;
 
 import java.util.ArrayList;
 
@@ -12,7 +12,7 @@ public class User extends Record {
 	private String email;
 	private String ID;
 	private String passHash;
-	private String passSalt;
+	private String passSalt; 
 	
 	public User() {
 		

@@ -1,4 +1,4 @@
-package matheuscabrini.shopserver;
+package trab4poo.shopserver;
 
 import java.util.ArrayList;
 
