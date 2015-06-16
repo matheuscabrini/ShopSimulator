@@ -6,7 +6,7 @@ import java.net.Socket;
 
 // TODO Fazer nested class em ShopManager? p ter acesso a lista de prods. etc. acho q n precisa
 
-public class ClientHandler implements Runnable {
+class ClientHandler implements Runnable {
 	private Socket client;
 	
 	// client handler precisa saber dados do usuário que está na conexão client
@@ -28,7 +28,11 @@ public class ClientHandler implements Runnable {
 	public void run() {
 		byte request;
 		
-		try (DataInputStream dataIn = new DataInputStream(client.getInputStream());) {			
+		try (DataInputStream dataIn = new DataInputStream(client.getInputStream());) {	
+			
+			/* antes de processar requests, devemos validar o user */
+			validateUser(/*?*/);
+			
 			while (true) {
 				 request = dataIn.readByte();
 				 processRequest(request);
@@ -37,6 +41,10 @@ public class ClientHandler implements Runnable {
 			System.out.println(Thread.currentThread().toString());
 			e.printStackTrace();
 		}
+	}
+	
+	private boolean validateUser(/*?*/) {
+		return false;
 	}
 	
 	private void processRequest(byte request) throws IOException {

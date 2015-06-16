@@ -1,9 +1,11 @@
 package trab4poo.shopserver;
 
+import java.util.Observable;
+
 // Classe abstrata de registro cujos código e métodos são padrões para Book, User e Rental.
 // Serve para deixar mais eficiente o processo de escrita e leitura de dados
 // nos arquivos, pois são similares para qualquer tipo de item.
-abstract class Record {
+abstract class Record extends Observable {
 	
 	// chave primária; setado pelo sistema quando o item é registrado
 	protected int code; 

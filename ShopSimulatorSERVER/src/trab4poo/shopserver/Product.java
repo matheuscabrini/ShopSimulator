@@ -1,6 +1,7 @@
 package trab4poo.shopserver;
 
 import java.util.ArrayList;
+import java.util.Observable;
 
 public class Product extends Record {
 	
