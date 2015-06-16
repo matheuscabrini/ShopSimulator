@@ -6,14 +6,22 @@ public class Product extends Record {
 	
 	// Campos presentes nos arquivos:
 	private String name;
-	private String category;
 	private String price;
-	private int amount;
+	private int expDay;
+	private int expMonth;
+	private int expYear;
+	private String provider; // ????
+	private int amount; // TODO product deve representar um conjunto (dado por amount) 
+						// de produtos iguais ou representar um único produto?
 
-	public Product(String name, String category, String price, int amount) {
+	public Product(String name, String price, int expDay, int expMonth, 
+			int expYear, String provider, int amount) {
 		this.name = name;
-		this.category = category;
 		this.price = price;
+		this.expDay = expDay;
+		this.expMonth = expMonth;
+		this.expYear = expYear;
+		this.provider = provider;
 		this.amount = (amount >= 0) ? amount : 0;
 	}
 	
@@ -23,8 +31,11 @@ public class Product extends Record {
 		
 		dataList.add(""+code);
 		dataList.add(name);
-		dataList.add(category);
 		dataList.add(price);
+		dataList.add(""+expDay);
+		dataList.add(""+expMonth);
+		dataList.add(""+expYear);
+		dataList.add(provider);
 		dataList.add(""+amount);
 
 		String[] retDataList = dataList.toArray(new String[dataList.size()]);
@@ -36,8 +47,11 @@ public class Product extends Record {
 		int i = 0;
 		code = Integer.parseInt(dataList[i++]);
 		name = dataList[i++];
-		category = dataList[i++];
 		price = dataList[i++];
+		expDay = Integer.parseInt(dataList[i++]);
+		expMonth = Integer.parseInt(dataList[i++]);
+		expYear = Integer.parseInt(dataList[i++]);
+		provider = dataList[i++];
 		amount = Integer.parseInt(dataList[i]);
 	}
 	

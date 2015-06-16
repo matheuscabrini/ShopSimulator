@@ -1,12 +1,10 @@
 package trab4poo.shopserver;
 
-import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.Socket;
 
-// TODO Fazer nested class em ShopManager? p ter acesso a lista de prods. etc
+// TODO Fazer nested class em ShopManager? p ter acesso a lista de prods. etc. acho q n precisa
 
 public class ClientHandler implements Runnable {
 	private Socket client;
@@ -14,7 +12,7 @@ public class ClientHandler implements Runnable {
 	// client handler precisa saber dados do usuário que está na conexão client
 	private int userCode;
 	
-	private enum ClientRequest {
+	enum ClientRequest {
 		SIGN_UP,
 		SIGN_IN,
 		PRODUCTS,
@@ -28,25 +26,28 @@ public class ClientHandler implements Runnable {
 
 	@Override
 	public void run() {
-		int line;
-		String user;
+		byte request;
 		
-		try {
-			DataInputStream dataIn = new DataInputStream(client.getInputStream());
-			
-			user = br.readLine();
-			System.out.println(user+" has entered the room!!!");
-			
-			while ((line = dataIn.readInt()) != null) {
-				if (!line.isEmpty()) 
-					System.out.println("["+user+"] "+line);
+		try (DataInputStream dataIn = new DataInputStream(client.getInputStream());) {			
+			while (true) {
+				 request = dataIn.readByte();
+				 processRequest(request);
 			}
-			
-			System.out.println(user+" has left the room!!!");
-			dataIn.close();
-			client.close();
-		} catch (IOException e){
+		} catch (IOException e) {
+			System.out.println(Thread.currentThread().toString());
 			e.printStackTrace();
+		}
+	}
+	
+	private void processRequest(byte request) throws IOException {
+		
+		switch (request) {
+		case ClientRequest.SIGN_IN:
+			
+			break;
+
+		default:
+			break;
 		}
 	}
 	

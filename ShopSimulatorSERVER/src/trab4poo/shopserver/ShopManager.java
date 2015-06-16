@@ -54,7 +54,7 @@ public class ShopManager {
 	
 	/*
 	 * 
-	 * ***** MÃ‰TODOS PRIVADOS ******** 
+	 * ***** MÉTODOS PRIVADOS ******** 
 	 * 
 	 */
 	
