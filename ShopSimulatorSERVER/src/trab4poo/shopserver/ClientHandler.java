@@ -41,12 +41,26 @@ public class ClientHandler implements Runnable {
 	
 	private void processRequest(byte request) throws IOException {
 		
-		switch (request) {
-		case ClientRequest.SIGN_IN:
+		ClientRequest req = ClientRequest.values()[request];
+		switch (req) {
+		
+		case SIGN_UP:
+			break;
 			
+		case SIGN_IN:
+			break;
+		
+		case PRODUCTS:
+			break;
+			
+		case PURCHASE:
+			break;
+			
+		case REQUISITION:
 			break;
 
 		default:
+			//cliente mandou uma request inválida...
 			break;
 		}
 	}
