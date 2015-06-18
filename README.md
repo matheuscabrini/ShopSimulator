@@ -8,8 +8,9 @@ Autoria:
 
 TODO s estão em shopmanager
 
-Design Patterns utilizados: Singleton e Observer
+Design Patterns utilizados: Singleton, Observer, Iterator
 
 Referências: 
 https://en.wikipedia.org/wiki/Singleton_pattern
 https://en.wikipedia.org/wiki/Observer_pattern
+https://en.wikipedia.org/?title=Iterator_pattern
