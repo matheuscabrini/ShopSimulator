@@ -37,7 +37,7 @@ public class Client {
 		output.close();
 	}
 	
-	// Protocolo de comunicação:
+	// Protocolo de comunicaï¿½ï¿½o:
 	public void sendRequest(byte req) throws IOException {
 		output.writeByte(req);
 	}
@@ -45,7 +45,7 @@ public class Client {
 		return input.readByte();
 	}
 	
-	public boolean signUp(String name, String address, String phone, 
+	public ReturnValues signUp(String name, String address, String phone, 
 			String email, String ID, String pass) throws Exception {
 		
 		String passHash = new String(MessageDigest.getInstance("SHA").digest(pass.getBytes()));
@@ -61,16 +61,17 @@ public class Client {
 		
 		byte response = receiveResponse();
 		if (response == CommunicationProtocol.SUCCESS)
-			return true;
-		else if (response == CommunicationProtocol.INVALID_ID)
-			throw new InvalidUserIDException("ID already exists");	
-		else 
-			return false;
+			return ReturnValues.SUCCESS;
+		
+		if (response == CommunicationProtocol.INVALID_ID)
+			return ReturnValues.ALREADY_IN_USE_ID;	
+		
+		return ReturnValues.UNKNOWN_ERROR;	//nunca Ã© para acontecer
 	}
 	
-	public boolean signIn(String ID, String pass) throws Exception {
+	public ReturnValues signIn(String ID, String pass) throws Exception {
 		
-		// Criptografamos a senha com uma função hash antes de envia-la
+		// Criptografamos a senha com uma funï¿½ï¿½o hash antes de envia-la
 		String passHash = new String(MessageDigest.getInstance("SHA").digest(pass.getBytes()));
 		
 		sendRequest(CommunicationProtocol.SIGN_IN); 	
@@ -80,13 +81,15 @@ public class Client {
 		
 		byte response = receiveResponse();
 		if (response == CommunicationProtocol.SUCCESS)
-			return true;
-		else if (response == CommunicationProtocol.INVALID_ID)
-			throw new InvalidUserIDException("Nonexistent ID");	
-		else if (response == CommunicationProtocol.INVALID_PASS)
-			throw new InvalidUserIDException("Wrong password");
-		else 
-			return false;
+			return ReturnValues.SUCCESS;
+		
+		if (response == CommunicationProtocol.INVALID_ID)
+			return ReturnValues.NO_SUCH_ID;
+		
+		if (response == CommunicationProtocol.INVALID_PASS)
+			return ReturnValues.WRONG_PASSWORD;
+		
+		return ReturnValues.UNKNOWN_ERROR;	//nunca Ã© para acontecer
 	}
 	
 	@SuppressWarnings("unchecked")

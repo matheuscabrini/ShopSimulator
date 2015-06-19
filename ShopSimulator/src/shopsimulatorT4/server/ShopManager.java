@@ -19,13 +19,16 @@ import shopsimulatorT4.shared.ShoppingCart;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 
-// TODO devo ver se dá pra fazer o programa escrever os csvs fora do bin (classpath, ver txt)
-// TODO pensar sobre se o programa está thread-safe (se n pode ocorrer deadlocks, conflitos etc)
+// TODO devo ver se dï¿½ pra fazer o programa escrever os csvs fora do bin (classpath, ver txt)
+// TODO pensar sobre se o programa estï¿½ thread-safe (se n pode ocorrer deadlocks, conflitos etc)
 
 public class ShopManager {
 
-	// Instância única de ShopManager (Singleton Pattern)
+	// Instï¿½ncia ï¿½nica de ShopManager (Singleton Pattern)
 	private static ShopManager shopMan;
+	
+	//InstÃ¢ncia de ClientListener (classe interna (Runnable) que espera e lida com novas conexÃµes de clientes)
+	private ClientListener clientListener;
 	
 	private final static int SERVER_PORT = 3700;
 	
@@ -45,8 +48,8 @@ public class ShopManager {
 	private ArrayList<Product> prodList;
 	private ArrayList<Requisition> reqList;
 	
-	// ShopManager segue o Singleton Pattern, logo só
-	// obtemos ele via um método getInstance() 
+	// ShopManager segue o Singleton Pattern, logo sï¿½
+	// obtemos ele via um mï¿½todo getInstance() 
 	public static synchronized ShopManager getInstance() throws IOException {
 		if (shopMan == null) 
 			shopMan = new ShopManager();
@@ -57,21 +60,27 @@ public class ShopManager {
 	private ShopManager() throws IOException {		
 		
 		// Se o arquivo com as quantidades de registros existir, tais valores 
-		// são trazidos ao programa. Também é esperado que exista os arquivos de
-		// registros, cujos dados logo serão copiados ao programa.	
+		// sï¿½o trazidos ao programa. Tambï¿½m ï¿½ esperado que exista os arquivos de
+		// registros, cujos dados logo serï¿½o copiados ao programa.	
 	    URL countersFileURL = this.getClass().getResource(countersFileName);
-		try {
-			BufferedReader br = new BufferedReader(
-					new FileReader(countersFileURL.getPath()));
-
-			nOfProducts = Integer.parseInt(br.readLine());
-			nOfUsers = Integer.parseInt(br.readLine());
-			nOfReqs = Integer.parseInt(br.readLine());
-			br.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-			throw e;
-		}
+	    
+	    if (countersFileURL == null)	//null pointer exception estava acontecendo
+	    	nOfProducts = nOfUsers = nOfReqs = 0;
+	    else
+	    {
+			try {
+				BufferedReader br = new BufferedReader(
+						new FileReader(countersFileURL.getPath()));
+	
+				nOfProducts = Integer.parseInt(br.readLine());
+				nOfUsers = Integer.parseInt(br.readLine());
+				nOfReqs = Integer.parseInt(br.readLine());
+				br.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+				throw e;
+			}
+	    }
 		
 		// Populando as listas com registros preexistentes:
 		
@@ -91,37 +100,44 @@ public class ShopManager {
 		getRecordsFromFile(reqsFileName, reqList);
 		restartObservers(); // reassociando requisitions aos
 							// seus respectivos produtos
+		
+		clientListener = null;	//esse atributo ser null indica que a escuta por novas conexÃµes de clientes nÃ£o estÃ¡ ativa
 	}
 	
 	// Inicia o listening do servidor por clients em uma thread
-	// separada, pois accept() é blocking.
+	// separada, pois accept() ï¿½ blocking.
 	public void listenForClients() {
-		new Thread(() -> {
-			try (ServerSocket server = new ServerSocket(SERVER_PORT)) {
-				while (true) {
-					Socket sock = server.accept();
-					ClientHandler clHandler = new ClientHandler(sock);
-					new Thread(clHandler).start();
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}).start();
+		
+		if (clientListener != null)
+			return;		//nesse caso, a escuta por clientes jÃ¡ estÃ¡ sendo feita e nÃ£o Ã© necessÃ¡rio reiniciÃ¡-la
+		
+		clientListener = new ClientListener();
+		new Thread(clientListener).start();
 	}
 	
-	// Obtenção da lista de produtos	
+	//Finaliza o listening por novas conexÃµes de clientes, terminando propriamente a execuÃ§Ã£o da thread responsÃ¡vel
+	public void stopListening()
+	{
+		if (clientListener == null)
+			return;		//nesse caso, o listening nÃ£o estÃ¡ sendo feito - nada a fazer
+		
+		clientListener.halt();
+		clientListener = null;
+	}
+	
+	// Obtenï¿½ï¿½o da lista de produtos	
 	public synchronized List<Product> getProducts() {
 		return prodList;
 	}
 
-	// Método para adicionar um produto. Não pode haver código repetido
+	// Mï¿½todo para adicionar um produto. Nï¿½o pode haver cï¿½digo repetido
 	public synchronized boolean addProduct(Product p) {
 		if (p == null) return false;
 		
-		// Código do produto é a quantidade atual de produtos
+		// Cï¿½digo do produto ï¿½ a quantidade atual de produtos
 		p.setCode(nOfProducts);
 		
-		for (Product existingProduct : prodList) { // Checando se código já existe
+		for (Product existingProduct : prodList) { // Checando se cï¿½digo jï¿½ existe
 			if (existingProduct.getCode() == p.getCode())
 				return false;
 		}
@@ -131,17 +147,17 @@ public class ShopManager {
 		return true;
 	}
 	
-	// Método para atualizar estoque de produto por código
+	// Mï¿½todo para atualizar estoque de produto por cï¿½digo
 	public synchronized void addProductAmount(int prodCode, int amount) {
 		Product p = getProductByCode(prodCode);
 		p.addAmount(amount);
 	}
 	
-	// Método para adicionar um produto. Não pode haver ID repetido
+	// Mï¿½todo para adicionar um usuÃ¡rio. Nï¿½o pode haver ID repetido
 	public synchronized boolean addUser(User u) {
 		if (u == null) return false;
 		
-		for (User existingUser : userList) { // Checando se ID já existe
+		for (User existingUser : userList) { // Checando se ID jï¿½ existe
 			if (existingUser.getID().equals(u.getID()))
 				return false;
 		}
@@ -151,14 +167,14 @@ public class ShopManager {
 		return true;
 	}
 	
-	// Método para adicionar um produto. Não pode haver requisition repetida
+	// Mï¿½todo para adicionar uma requisiÃ§Ã£o. Nï¿½o pode haver requisition repetida
 	public synchronized boolean addRequisition(Requisition r) {
 		if (r == null || reqList.contains(r)) return false;
 		
 		Product p = getProductByCode(r.getProductCode());
-		if (p == null) return false; // caso o produto da requisition não exista
+		if (p == null) return false; // caso o produto da requisition nï¿½o exista
 
-		// Setando a requisition como observer do produto desejado pelo usuário
+		// Setando a requisition como observer do produto desejado pelo usuï¿½rio
 		p.addObserver(r);
 		
 		reqList.add(r);
@@ -167,8 +183,8 @@ public class ShopManager {
 		return true;
 	}
 	
-	// Método para remover uma requisição. Chamado pela própria 
-	// requisition após enviar o email ao usuário
+	// Mï¿½todo para remover uma requisiï¿½ï¿½o. Chamado pela prï¿½pria 
+	// requisition apï¿½s enviar o email ao usuï¿½rio
 	public synchronized boolean removeRequisition(Requisition r) {
 		if (r == null) return false;
 		if (reqList.remove(r) == false) return false;
@@ -176,7 +192,7 @@ public class ShopManager {
 		return true;
 	}
 	
-	// Métodos de consulta no sistema
+	// Mï¿½todos de consulta no sistema
 	
 	public synchronized Product getProductByCode(int code) {
 		if (code < 0) return null;
@@ -193,8 +209,8 @@ public class ShopManager {
 		return null;
 	}
 	
-	// Esta função atualiza, nos respectivos arquivos, os dados 
-	// contidos no programa sobre produtos, usuários, requisições
+	// Esta funï¿½ï¿½o atualiza, nos respectivos arquivos, os dados 
+	// contidos no programa sobre produtos, usuï¿½rios, requisiï¿½ï¿½es
 	// e suas respectivas quantidades.
 	public void saveChangesToFiles() throws IOException {
 		writeRecordsToFile(productsFileName, prodList);
@@ -210,7 +226,7 @@ public class ShopManager {
 
 	/*
 	 * 
-	 * ***** MÉTODOS DEFAULT ******** 
+	 * ***** Mï¿½TODOS DEFAULT ******** 
 	 * 
 	 */
 	
@@ -230,7 +246,7 @@ public class ShopManager {
 	
 	/*
 	 * 
-	 * ***** MÉTODOS PRIVADOS ******** 
+	 * ***** Mï¿½TODOS PRIVADOS ******** 
 	 * 
 	 */
 	
@@ -252,7 +268,7 @@ public class ShopManager {
 		writer.close();
 	}
 	
-	// Passa os dados de um dos arquivos à sua respectiva lista dentro do programa
+	// Passa os dados de um dos arquivos ï¿½ sua respectiva lista dentro do programa
 	private void getRecordsFromFile(String fileName, List<? extends Record> rList) throws IOException {
 	    URL fileURL = this.getClass().getResource(fileName);
 		CSVReader reader = new CSVReader(new FileReader(fileURL.getPath()), ',', 
@@ -268,7 +284,7 @@ public class ShopManager {
 		reader.close();
 	}
 	
-	// Método a ser chamado logo após a leitura inicial dos CSVs,
+	// Mï¿½todo a ser chamado logo apï¿½s a leitura inicial dos CSVs,
 	// o qual reassocia os Requisitions (observers) aos seus respectivos
 	// produtos (observables)
 	private void restartObservers() {
@@ -277,6 +293,40 @@ public class ShopManager {
 				if (prod.getCode() == req.getProductCode())
 					prod.addObserver(req);
 			}
+		}
+	}
+	
+	/*
+	 * 
+	 * ***** CLASSES INTERNAS ******** 
+	 * 
+	 */
+	
+	class ClientListener implements Runnable
+	{
+		private boolean haltFlag;
+		
+		ClientListener()
+		{
+			haltFlag = false;
+		}
+		
+		public void run()
+		{
+			try (ServerSocket server = new ServerSocket(SERVER_PORT)) {
+				while (!haltFlag) {
+					Socket sock = server.accept();
+					ClientHandler clHandler = new ClientHandler(sock);
+					new Thread(clHandler).start();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		public void halt()
+		{
+			haltFlag = true;
 		}
 	}
 }
