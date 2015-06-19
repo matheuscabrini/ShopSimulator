@@ -1,4 +1,7 @@
 # ShopSimulator
+
+TODO remover clientrequest.java
+
 Projeto de loja online para disciplina Programação Orientada a Objetos
 
 Autoria:
