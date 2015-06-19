@@ -1,5 +1,7 @@
 package shopsimulatorT4.server;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Observable;
 import java.util.Observer;
@@ -12,9 +14,9 @@ import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
-// TODO Decidir se amountNeeded será needed (pun not intended).
-// TODO colocar amountNeeded no email também?
-class Requisition extends Record implements Observer {
+// Requisição que um client pode realizar a fim de que seja notificado, via email,
+// quando o estoque de um certo produto for reposto.
+public class Requisition extends Record implements Observer, Serializable {
 
 	// Dados necessários para poder notificar o usuário
 	int prodCode = 0;
@@ -22,13 +24,12 @@ class Requisition extends Record implements Observer {
 	String userName = "";
 	int amountNeeded = 0; // quantia do produto desejada pelo usuário 
 	
-	public Requisition() {}; // usado por ShopManager
+	Requisition() {}; // usado por ShopManager
 	
-	public Requisition(int prodCode, String userEmail, String userName, int amountNeeded) {
+	public Requisition(int prodCode, String userEmail, String userName) {
 		this.prodCode = prodCode;
 		this.userEmail = userEmail;
 		this.userName = userName;
-		this.amountNeeded = amountNeeded;
 	}
 	
 	// Quando houver mudança no observable product (ou seja, produto agora está disponivel)
@@ -38,8 +39,17 @@ class Requisition extends Record implements Observer {
 		Product prod = (Product) product; 
 		
 		// checando se há a quantidade desejada pelo usuário
-		if (prod.getAmount() >= amountNeeded)
-			sendEmail(prod.getName());
+		//if (prod.getAmount() >= amountNeeded)
+		sendEmail(prod.getName());
+
+		// Como a a notificação foi realizada, devemos 
+		// remover esta requisition do sistema
+		try {
+			ShopManager.getInstance().removeRequisition(this);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	private void sendEmail(String prodName) {
@@ -102,5 +112,28 @@ class Requisition extends Record implements Observer {
 
 	public int getProductCode() {
 		return prodCode;
+	}
+	public String getUserEmail() {
+		return userEmail;
+	}
+	public String getUserName() {
+		return userName;
+	}
+	
+	// equals() é utilizado para remover Requisition da lista em ShopManager
+	// e para adicioná-la também
+	@Override
+	public boolean equals(Object other) {
+	    if (other == null) return false;
+	    if (other == this) return true;
+	    if (!(other instanceof Requisition))return false;
+	    
+	    Requisition otherReq = (Requisition)other;
+	    if (prodCode == otherReq.getProductCode() &&
+	    	userEmail == otherReq.getUserEmail() &&
+	    	userName == otherReq.getUserName())
+	    	return true;
+	    else 
+	    	return false;
 	}
 }

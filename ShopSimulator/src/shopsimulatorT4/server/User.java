@@ -94,4 +94,11 @@ public class User extends Record {
 	String getPassHash() {
 		return passHash;
 	}
+	
+	// Para debug
+	@Override
+	public String toString() {
+		return "ID: "+ID+"\nname: "+name+"\nemail: "+email+"\naddress: "
+				+address+"\n"+"\nphone: "+phone+"\nhash: "+passHash+"\n";
+	}
 }

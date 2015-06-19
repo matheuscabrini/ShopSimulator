@@ -11,14 +11,15 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import shopsimulatorT4.shared.ShoppingCart;
+
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 
 // TODO DECIDIR sobre retorno das listas
-// TODO DECIDIR setCode
 // TODO devo ver se dá pra fazer o programa escrever os csvs fora do bin (classpath, ver txt)
-// TODO pensar sobre se o programa está thread-safe (se n pode ocorrer deadlocks etc)
-// TODO
+// TODO pensar sobre se o programa está thread-safe (se n pode ocorrer deadlocks, conflitos etc)
+// TODO MAKEPURCHASE() (decidir iterator iterable etc.)
 
 public class ShopManager {
 
@@ -112,50 +113,83 @@ public class ShopManager {
 		return prodList;
 	}
 
-	// Métodos para adicionar registros no sistema
-	
+	// Método para adicionar um produto. Não pode haver código repetido
 	public synchronized boolean addProduct(Product p) {
 		if (p == null) return false;
-		//p.setCode(?);
-		prodList.add(p);
-		return true;
-	}
-	public synchronized boolean addUser(User u) { // TODO onde que o user será validado?
-		if (u == null) return false;
-		// TODO onde que o user será validado?
-		// validateUser();
-		for (User existingUser : userList) { // Checando se ID já existe
-			if (existingUser.getID() == u.getID())
+		
+		// Código do produto é a quantidade atual de produtos
+		p.setCode(nOfProducts);
+		
+		for (Product existingProduct : prodList) { // Checando se código já existe
+			if (existingProduct.getCode() == p.getCode())
 				return false;
 		}
-		userList.add(u); 
+		
+		prodList.add(p);
+		nOfProducts++;
 		return true;
 	}
+	
+	// Método para atualizar estoque de produto por código
+	public synchronized void addProductAmount(int prodCode, int amount) {
+		Product p = getProductByCode(prodCode);
+		p.addAmount(amount);
+	}
+	
+	// Método para adicionar um produto. Não pode haver ID repetido
+	public synchronized boolean addUser(User u) {
+		if (u == null) return false;
+		
+		for (User existingUser : userList) { // Checando se ID já existe
+			if (existingUser.getID().equals(u.getID()))
+				return false;
+		}
+		
+		userList.add(u); 
+		nOfUsers++;
+		return true;
+	}
+	
+	// Método para adicionar um produto. Não pode haver requisition repetida
 	public synchronized boolean addRequisition(Requisition r) {
-		if (r == null) return false;
+		if (r == null || reqList.contains(r)) return false;
+		
+		Product p = getProductByCode(r.getProductCode());
+		if (p == null) return false; // caso o produto da requisition não exista
+
+		// Setando a requisition como observer do produto desejado pelo usuário
+		p.addObserver(r);
+		
 		reqList.add(r);
+		nOfReqs++;
+		
+		return true;
+	}
+	
+	// Método para remover uma requisição. Chamado pela própria 
+	// requisition após enviar o email ao usuário
+	synchronized boolean removeRequisition(Requisition r) {
+		if (r == null) return false;
+		if (reqList.remove(r) == false) return false;
+		nOfReqs--;
 		return true;
 	}
 	
 	// Métodos de consulta no sistema
 	
-	public synchronized Product getProductByCode(int code) throws IllegalArgumentException {
+	public synchronized Product getProductByCode(int code) {
+		if (code < 0) return null;
 		for (Product p : prodList) {
 			if (p.getCode() == code) return p;
 		}
-		throw new IllegalArgumentException("Product not found");
+		return null;
 	}
-	public synchronized User getUserByID(String ID) throws IllegalArgumentException {
+	public synchronized User getUserByID(String ID) {
+		if (ID == null || ID.isEmpty()) return null;
 		for (User u : userList) {
 			if (u.getID().equals(ID)) return u;
 		}
-		throw new IllegalArgumentException("User not found");
-	}
-	
-	// Método para atualizar estoque de produto por código
-	public void addProductAmount(int prodCode, int amount) {
-		Product p = getProductByCode(prodCode);
-		p.addAmount(amount);
+		return null;
 	}
 	
 	// Esta função atualiza, nos respectivos arquivos, os dados 
@@ -179,8 +213,10 @@ public class ShopManager {
 	 * 
 	 */
 	
-	// metodos relativos a senha, setar codigo, setar hash...?
-	// realizar compra
+	synchronized void makePurchase(ShoppingCart cart) {
+		// 	TODO 
+		
+	}
 	
 	/*
 	 * 

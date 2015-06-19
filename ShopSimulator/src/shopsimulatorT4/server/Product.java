@@ -1,9 +1,10 @@
 package shopsimulatorT4.server;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
 // TODO juntar expday, month e year em uma String só? 
-public class Product extends Record {
+public class Product extends Record implements Serializable {
 	
 	// Campos presentes nos arquivos:
 	private int code = 0; // chave primária; setado pelo sistema quando o item é registrado
@@ -111,7 +112,7 @@ public class Product extends Record {
 		
 		// Alertando a mudança para os observers deste produto:
 		setChanged();
-		notifyObservers(); 
+		notifyObservers();
 	}
 	synchronized void removeAmount(int amount) { // utilizado somente por ShopManager
 		this.amount -= amount;
