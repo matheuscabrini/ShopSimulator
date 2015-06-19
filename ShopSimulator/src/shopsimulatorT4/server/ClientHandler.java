@@ -10,6 +10,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 
 // TODO se mandar request invalida deve mandar END (terminar conexao) ou n fazer nada?
+//R: Acho que nÃ£o fazer nada
 
 class ClientHandler implements Runnable {
 
@@ -18,15 +19,18 @@ class ClientHandler implements Runnable {
 	private ObjectInputStream input;
 	private ShopManager shopMan;
 	
-	// client handler precisa saber ID do usuário que está na conexão (após login)
+	private boolean haltFlag;
+	
+	// client handler precisa saber ID do usuï¿½rio que estï¿½ na conexï¿½o (apï¿½s login)
 	private String userID;
 	
 	public ClientHandler(Socket client) throws IOException {
 		this.client = client;
 		shopMan = ShopManager.getInstance();
+		haltFlag = false;
 	}
 	
-	// Protocolo de comunicação:
+	// Protocolo de comunicaï¿½ï¿½o:
 	public void sendResponse(byte res) throws IOException {
 		output.writeByte(res);
 	}
@@ -40,20 +44,19 @@ class ClientHandler implements Runnable {
 			output.flush(); // flush no header da stream
 			input = new ObjectInputStream(client.getInputStream());
 			
-			// Antes de processar requests, devemos validar a conexão com o handshake
+			// Antes de processar requests, devemos validar a conexï¿½o com o handshake
 			byte request = receiveRequest();
 			if (CommunicationProtocol.HANDSHAKE != request)
 				throw new IOException("Invalid connection");
 			
-			// Lemos request do client até que ele envie sinal de
-			// fim de conexão, ou seja, retorno false de processRequest() 
-			while (true) {
+			// Lemos request do client atï¿½ que ele envie sinal de
+			// fim de conexï¿½o, ou seja, retorno false de processRequest() 
+			while(!haltFlag){
 				 request = receiveRequest();
-				 if (processRequest(request) == false)
-					 break;
+				 processRequest(request);
 			}
 			
-			output.close(); // terminando conexão
+			output.close(); // terminando conexï¿½o
 		} catch (IOException e) {
 			String errorMsg = "Error on connection to user "+userID+" on thread ";
 			System.err.println(errorMsg + Thread.currentThread());
@@ -61,7 +64,11 @@ class ClientHandler implements Runnable {
 		}
 	}
 	
-	// Retorna falso se a conexão deve terminar, true caso contrário
+	public void halt() {
+		haltFlag = true;
+	}
+	
+	// Retorna falso se a conexï¿½o deve terminar, true caso contrï¿½rio
 	private boolean processRequest(byte request) {
 		switch (request) {			
 			case CommunicationProtocol.SIGN_UP:
@@ -83,15 +90,15 @@ class ClientHandler implements Runnable {
 			case CommunicationProtocol.END:
 				return false;
 
-			default: // request inválida (nunca deve acontecer)
+			default: // request invï¿½lida (nunca deve acontecer)
 				break;
 		}
 		return true;
 	}
 	
-	// Método para receber cadastro de usuário.
-	// Lemos os dados do client, digitados pelo usuário,
-	// criamos o novo User e tentamos adicioná-lo ao sistema.
+	// Mï¿½todo para receber cadastro de usuï¿½rio.
+	// Lemos os dados do client, digitados pelo usuï¿½rio,
+	// criamos o novo User e tentamos adicionï¿½-lo ao sistema.
 	private void receiveSignUp() {
 		User newUser = new User();
 		
@@ -114,7 +121,7 @@ class ClientHandler implements Runnable {
 		}
 	}
 	
-	// Método para receber login de usuário no sistema
+	// Mï¿½todo para receber login de usuï¿½rio no sistema
 	private void receiveSignIn() {
 		String ID = null, passHash = null;
 		
@@ -139,7 +146,7 @@ class ClientHandler implements Runnable {
 		}
 	}
 	
-	// Método para enviar ao client lista de produtos
+	// Mï¿½todo para enviar ao client lista de produtos
 	private void sendProducts() {
 		try {
 			ArrayList<Product> list = (ArrayList<Product>) shopMan.getProducts();
@@ -152,7 +159,7 @@ class ClientHandler implements Runnable {
 		}
 	}
 	
-	// Método para receber do client um carrinho de compras
+	// Mï¿½todo para receber do client um carrinho de compras
 	private void receivePurchases() {
 		try {
 			ShoppingCart cart = (ShoppingCart) input.readObject();
