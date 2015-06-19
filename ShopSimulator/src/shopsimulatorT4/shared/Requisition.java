@@ -1,4 +1,4 @@
-package shopsimulatorT4.server;
+package shopsimulatorT4.shared;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -14,6 +14,9 @@ import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
+import shopsimulatorT4.server.Record;
+import shopsimulatorT4.server.ShopManager;
+
 // Requisição que um client pode realizar a fim de que seja notificado, via email,
 // quando o estoque de um certo produto for reposto.
 public class Requisition extends Record implements Observer, Serializable {
@@ -24,7 +27,7 @@ public class Requisition extends Record implements Observer, Serializable {
 	String userName = "";
 	int amountNeeded = 0; // quantia do produto desejada pelo usuário 
 	
-	Requisition() {}; // usado por ShopManager
+	public Requisition() {}; // usado por ShopManager
 	
 	public Requisition(int prodCode, String userEmail, String userName) {
 		this.prodCode = prodCode;
@@ -89,7 +92,7 @@ public class Requisition extends Record implements Observer, Serializable {
 	}
 	
 	@Override
-	String[] getData() {
+	public String[] getData() {
 		ArrayList<String> dataList = new ArrayList<>();
 
 		dataList.add(""+prodCode);
@@ -102,7 +105,7 @@ public class Requisition extends Record implements Observer, Serializable {
 	}
 
 	@Override
-	void setData(String[] dataList) {
+	public void setData(String[] dataList) {
 		int i = 0;
 		prodCode = Integer.parseInt(dataList[i]);
 		userEmail = dataList[i++];

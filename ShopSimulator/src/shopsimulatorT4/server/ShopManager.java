@@ -9,17 +9,18 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
+import shopsimulatorT4.shared.Product;
+import shopsimulatorT4.shared.Requisition;
 import shopsimulatorT4.shared.ShoppingCart;
 
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 
-// TODO DECIDIR sobre retorno das listas
 // TODO devo ver se dá pra fazer o programa escrever os csvs fora do bin (classpath, ver txt)
 // TODO pensar sobre se o programa está thread-safe (se n pode ocorrer deadlocks, conflitos etc)
-// TODO MAKEPURCHASE() (decidir iterator iterable etc.)
 
 public class ShopManager {
 
@@ -168,7 +169,7 @@ public class ShopManager {
 	
 	// Método para remover uma requisição. Chamado pela própria 
 	// requisition após enviar o email ao usuário
-	synchronized boolean removeRequisition(Requisition r) {
+	public synchronized boolean removeRequisition(Requisition r) {
 		if (r == null) return false;
 		if (reqList.remove(r) == false) return false;
 		nOfReqs--;
@@ -213,9 +214,18 @@ public class ShopManager {
 	 * 
 	 */
 	
-	synchronized void makePurchase(ShoppingCart cart) {
-		// 	TODO 
+	// Recebe o carrinho de compras de um client e processa tais compras
+	synchronized void processPurchases(ShoppingCart cart) {
+		// TODO logging/pdf?
 		
+		Iterator<ShoppingCart.Purchase> it = cart.getPurchases();
+		
+		while (it.hasNext()) {
+			ShoppingCart.Purchase purchase = it.next();
+			Product prod = getProductByCode(purchase.getProdCode());
+			if (prod == null) continue;
+			prod.removeAmount(purchase.getAmountPurchased());
+		}
 	}
 	
 	/*

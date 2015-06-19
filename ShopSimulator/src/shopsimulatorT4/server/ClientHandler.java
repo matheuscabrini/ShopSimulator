@@ -1,6 +1,8 @@
 package shopsimulatorT4.server;
 
 import shopsimulatorT4.shared.CommunicationProtocol;
+import shopsimulatorT4.shared.Product;
+import shopsimulatorT4.shared.Requisition;
 import shopsimulatorT4.shared.ShoppingCart;
 
 import java.io.ObjectInputStream;
@@ -8,9 +10,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
-
-// TODO se mandar request invalida deve mandar END (terminar conexao) ou n fazer nada?
-//R: Acho que nÃ£o fazer nada
+import java.util.Iterator;
 
 class ClientHandler implements Runnable {
 
@@ -19,9 +19,9 @@ class ClientHandler implements Runnable {
 	private ObjectInputStream input;
 	private ShopManager shopMan;
 	
-	private boolean haltFlag;
+	private boolean haltFlag; // serve para dizer se a conexão deve terminar 
 	
-	// client handler precisa saber ID do usuï¿½rio que estï¿½ na conexï¿½o (apï¿½s login)
+	// client handler precisa saber ID do usuário que está na conexão (após login)
 	private String userID;
 	
 	public ClientHandler(Socket client) throws IOException {
@@ -30,7 +30,7 @@ class ClientHandler implements Runnable {
 		haltFlag = false;
 	}
 	
-	// Protocolo de comunicaï¿½ï¿½o:
+	// Protocolo de comunição:
 	public void sendResponse(byte res) throws IOException {
 		output.writeByte(res);
 	}
@@ -49,14 +49,14 @@ class ClientHandler implements Runnable {
 			if (CommunicationProtocol.HANDSHAKE != request)
 				throw new IOException("Invalid connection");
 			
-			// Lemos request do client atï¿½ que ele envie sinal de
-			// fim de conexï¿½o, ou seja, retorno false de processRequest() 
+			// Lemos request do client até que ele envie sinal de
+			// fim de conexao, ou seja, retorno false de processRequest() 
 			while(!haltFlag){
 				 request = receiveRequest();
 				 processRequest(request);
 			}
 			
-			output.close(); // terminando conexï¿½o
+			output.close(); // terminando conexao
 		} catch (IOException e) {
 			String errorMsg = "Error on connection to user "+userID+" on thread ";
 			System.err.println(errorMsg + Thread.currentThread());
@@ -68,7 +68,7 @@ class ClientHandler implements Runnable {
 		haltFlag = true;
 	}
 	
-	// Retorna falso se a conexï¿½o deve terminar, true caso contrï¿½rio
+	// Retorna falso se a conexao deve terminar, true caso contrario
 	private boolean processRequest(byte request) {
 		switch (request) {			
 			case CommunicationProtocol.SIGN_UP:
@@ -83,22 +83,22 @@ class ClientHandler implements Runnable {
 				sendProducts();
 				break;
 				
-			case CommunicationProtocol.PURCHASE:
-				receivePurchases();
+			case CommunicationProtocol.SHOPPING_CART:
+				receiveShoppingCart();
 				break;
 				
 			case CommunicationProtocol.END:
 				return false;
 
-			default: // request invï¿½lida (nunca deve acontecer)
+			default: // request invalida (nunca deve acontecer)
 				break;
 		}
 		return true;
 	}
 	
-	// Mï¿½todo para receber cadastro de usuï¿½rio.
-	// Lemos os dados do client, digitados pelo usuï¿½rio,
-	// criamos o novo User e tentamos adicionï¿½-lo ao sistema.
+	// Metodo para receber cadastro de usuario.
+	// Lemos os dados do client, digitados pelo usuario,
+	// criamos o novo User e tentamos adiciona-lo ao sistema.
 	private void receiveSignUp() {
 		User newUser = new User();
 		
@@ -121,7 +121,7 @@ class ClientHandler implements Runnable {
 		}
 	}
 	
-	// Mï¿½todo para receber login de usuï¿½rio no sistema
+	// Metodo para receber login de usuario no sistema
 	private void receiveSignIn() {
 		String ID = null, passHash = null;
 		
@@ -146,7 +146,7 @@ class ClientHandler implements Runnable {
 		}
 	}
 	
-	// Mï¿½todo para enviar ao client lista de produtos
+	// Metodo para enviar ao client lista de produtos
 	private void sendProducts() {
 		try {
 			ArrayList<Product> list = (ArrayList<Product>) shopMan.getProducts();
@@ -159,11 +159,16 @@ class ClientHandler implements Runnable {
 		}
 	}
 	
-	// Mï¿½todo para receber do client um carrinho de compras
-	private void receivePurchases() {
+	// Metodo para receber do client um carrinho de compras
+	private void receiveShoppingCart() {
 		try {
 			ShoppingCart cart = (ShoppingCart) input.readObject();
-			shopMan.makePurchase(cart);
+			shopMan.processPurchases(cart);
+			
+			Iterator<Requisition> it = cart.getRequisitions();
+			while (it.hasNext()) {
+				shopMan.addRequisition(it.next());
+			}
 		} catch (Exception e) {
 			String errorMsg = "Error on receiving purchases from: "+userID+" on thread ";
 			System.err.println(errorMsg + Thread.currentThread());

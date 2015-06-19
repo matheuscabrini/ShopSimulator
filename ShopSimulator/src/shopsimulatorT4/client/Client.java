@@ -1,7 +1,8 @@
 package shopsimulatorT4.client;
 
-import shopsimulatorT4.server.Product;
 import shopsimulatorT4.shared.CommunicationProtocol;
+import shopsimulatorT4.shared.Product;
+import shopsimulatorT4.shared.ShoppingCart;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -44,7 +45,7 @@ public class Client {
 		return input.readByte();
 	}
 	
-	public void signUp(String name, String address, String phone, 
+	public boolean signUp(String name, String address, String phone, 
 			String email, String ID, String pass) throws Exception {
 		
 		String passHash = new String(MessageDigest.getInstance("SHA").digest(pass.getBytes()));
@@ -57,23 +58,48 @@ public class Client {
 		output.writeUTF(ID);
 		output.writeUTF(passHash);
 		output.flush();
+		
+		byte response = receiveResponse();
+		if (response == CommunicationProtocol.SUCCESS)
+			return true;
+		else if (response == CommunicationProtocol.INVALID_ID)
+			throw new InvalidUserIDException("ID already exists");	
+		else 
+			return false;
 	}
 	
-	public void signIn(String ID, String pass) throws Exception {
+	public boolean signIn(String ID, String pass) throws Exception {
+		
+		// Criptografamos a senha com uma função hash antes de envia-la
 		String passHash = new String(MessageDigest.getInstance("SHA").digest(pass.getBytes()));
 		
 		sendRequest(CommunicationProtocol.SIGN_IN); 	
 		output.writeUTF(ID);
 		output.writeUTF(passHash);
 		output.flush();
+		
+		byte response = receiveResponse();
+		if (response == CommunicationProtocol.SUCCESS)
+			return true;
+		else if (response == CommunicationProtocol.INVALID_ID)
+			throw new InvalidUserIDException("Nonexistent ID");	
+		else if (response == CommunicationProtocol.INVALID_PASS)
+			throw new InvalidUserIDException("Wrong password");
+		else 
+			return false;
 	}
 	
 	@SuppressWarnings("unchecked")
 	public ArrayList<Product> getProducts() throws Exception {
 		sendRequest(CommunicationProtocol.PRODUCTS_LIST);
-		
 		ArrayList<Product> ret = (ArrayList<Product>) input.readObject();;
 		return ret;
+	}
+	
+	public void sendShoppingCart(ShoppingCart cart) throws IOException {
+		sendRequest(CommunicationProtocol.SHOPPING_CART);
+		output.writeObject(cart);
+		output.flush();
 	}
 	
 	/*

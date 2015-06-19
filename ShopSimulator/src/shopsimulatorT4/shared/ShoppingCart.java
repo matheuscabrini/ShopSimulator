@@ -5,17 +5,15 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import shopsimulatorT4.server.Requisition;
-
-// TODO implementar Iterable ou retorna um iterator? alem disso, 
-// purchase terá que virar uma classe separada? (sim, se for utilizado generics para Purchase)
+// Um carrinho de compras, que contém as compras realizadas pelo usuário além
+// de suas requisições por notificação no reestoque de produto indisponível
 public class ShoppingCart implements Serializable {
 	
-	// Par composto por código de produto, e quantidade comprada desse produto
-	class Purchase implements Serializable {
-		public int prodCode;
-		public int amountPurchased;
-		public String prodPrice;
+	// Conjunto de dados necessários para representar uma compra:
+	public class Purchase implements Serializable {
+		private int prodCode; // código do produto
+		private int amountPurchased; // quanto foi comprado dele
+		private String prodPrice; // preço dele
 		
 		public Purchase(int prodCode, int amountPurchased, String prodPrice) {
 			this.prodCode = prodCode;

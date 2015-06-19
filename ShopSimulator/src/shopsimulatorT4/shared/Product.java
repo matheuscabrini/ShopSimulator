@@ -1,7 +1,9 @@
-package shopsimulatorT4.server;
+package shopsimulatorT4.shared;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+
+import shopsimulatorT4.server.Record;
 
 // TODO juntar expday, month e year em uma String só? 
 public class Product extends Record implements Serializable {
@@ -16,7 +18,7 @@ public class Product extends Record implements Serializable {
 	private String provider = ""; // ????
 	private int amount = 0;
 	
-	Product() {}; // usado por ShopManager
+	public Product() {}; // usado por ShopManager
 
 	public Product(String name, String price, int expDay, int expMonth, 
 			int expYear, String provider, int amount) {
@@ -30,7 +32,7 @@ public class Product extends Record implements Serializable {
 	}
 	
 	@Override
-	String[] getData() {
+	public String[] getData() {
 		ArrayList<String> dataList = new ArrayList<>();
 		
 		dataList.add(""+code);
@@ -47,7 +49,7 @@ public class Product extends Record implements Serializable {
 	}
 
 	@Override
-	void setData(String[] dataList) {
+	public void setData(String[] dataList) {
 		int i = 0;
 		code = Integer.parseInt(dataList[i++]);
 		name = dataList[i++];
@@ -64,7 +66,7 @@ public class Product extends Record implements Serializable {
 	public int getCode() {
 		return code;
 	}
-	void setCode(int code) {
+	public void setCode(int code) {
 		this.code = code;
 	}
 	
@@ -107,14 +109,14 @@ public class Product extends Record implements Serializable {
 		this.provider = provider;
 	}
 
-	synchronized void addAmount(int amount) { // utilizado somente por ShopManager
+	public synchronized void addAmount(int amount) { // utilizado somente por ShopManager
 		this.amount += amount;
 		
 		// Alertando a mudança para os observers deste produto:
 		setChanged();
 		notifyObservers();
 	}
-	synchronized void removeAmount(int amount) { // utilizado somente por ShopManager
+	public synchronized void removeAmount(int amount) { // utilizado somente por ShopManager
 		this.amount -= amount;
 		if (this.amount < 0) this.amount = 0;
 	}

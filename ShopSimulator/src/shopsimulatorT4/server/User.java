@@ -26,7 +26,7 @@ public class User extends Record {
 	}
 
 	@Override
-	String[] getData() {
+	public String[] getData() {
 		ArrayList<String> dataList = new ArrayList<>();
 		
 		dataList.add(name);
@@ -41,7 +41,7 @@ public class User extends Record {
 	}
 
 	@Override
-	void setData(String[] dataList) {
+	public void setData(String[] dataList) {
 		int i = 0;
 		name = dataList[i++];
 		address = dataList[i++];
