@@ -1,13 +1,15 @@
 package shopsimulatorT4.server;
 
 import java.io.BufferedReader;
+
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URL;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -30,13 +32,16 @@ public class ShopManager {
 	//Instância de ClientListener (classe interna (Runnable) que espera e lida com novas conexões de clientes)
 	private ClientListener clientListener;
 	
+	//Lista de instâncias de ClientHandlers sendo atualmente executadas em Threads.
+	private ArrayList<ClientHandler> activeHandlers;
+	
 	private final static int SERVER_PORT = 3700;
 	
 	// Caminhos para os arquivos:
-    private final String productsFileName = "/CSVs/Products.csv";
-    private final String usersFileName = "/CSVs/Users.csv";
-    private final String reqsFileName = "/CSVs/Requisitions.csv";
-    private final String countersFileName = "/CSVs/Record_Counters.txt";
+    private final String productsFileName = "CSVs/Products.csv";
+    private final String usersFileName = "CSVs/Users.csv";
+    private final String reqsFileName = "CSVs/Requisitions.csv";
+    private final String countersFileName = "CSVs/Record_Counters.txt";
     
 	// Quantias de items registrados no sistema:
 	private int nOfProducts = 0;
@@ -62,25 +67,24 @@ public class ShopManager {
 		// Se o arquivo com as quantidades de registros existir, tais valores 
 		// s�o trazidos ao programa. Tamb�m � esperado que exista os arquivos de
 		// registros, cujos dados logo ser�o copiados ao programa.	
-	    URL countersFileURL = this.getClass().getResource(countersFileName);
-	    
-	    if (countersFileURL == null)	//null pointer exception estava acontecendo
-	    	nOfProducts = nOfUsers = nOfReqs = 0;
-	    else
-	    {
-			try {
-				BufferedReader br = new BufferedReader(
-						new FileReader(countersFileURL.getPath()));
-	
-				nOfProducts = Integer.parseInt(br.readLine());
-				nOfUsers = Integer.parseInt(br.readLine());
-				nOfReqs = Integer.parseInt(br.readLine());
-				br.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-				throw e;
-			}
-	    }
+		
+		try {
+			BufferedReader br = new BufferedReader(
+					new FileReader(countersFileName));
+
+			nOfProducts = Integer.parseInt(br.readLine());
+			nOfUsers = Integer.parseInt(br.readLine());
+			nOfReqs = Integer.parseInt(br.readLine());
+			br.close();
+		} catch (FileNotFoundException e) {
+			nOfProducts = 0;
+			nOfUsers = 0;
+			nOfReqs = 0;
+		} catch(IOException e) {
+			e.printStackTrace();
+			throw e;		
+		}
+			
 		
 		// Populando as listas com registros preexistentes:
 		
@@ -102,11 +106,12 @@ public class ShopManager {
 							// seus respectivos produtos
 		
 		clientListener = null;	//esse atributo ser null indica que a escuta por novas conexões de clientes não está ativa
+		activeHandlers = new ArrayList<ClientHandler>();
 	}
 	
 	// Inicia o listening do servidor por clients em uma thread
 	// separada, pois accept() � blocking.
-	public void listenForClients() {
+	public synchronized void listenForClients() {
 		
 		if (clientListener != null)
 			return;		//nesse caso, a escuta por clientes já está sendo feita e não é necessário reiniciá-la
@@ -116,13 +121,23 @@ public class ShopManager {
 	}
 	
 	//Finaliza o listening por novas conexões de clientes, terminando propriamente a execução da thread responsável
-	public void stopListening()
+	public synchronized void stopListening()
 	{
 		if (clientListener == null)
 			return;		//nesse caso, o listening não está sendo feito - nada a fazer
 		
 		clientListener.halt();
 		clientListener = null;
+	}
+	
+	public synchronized void close() throws IOException
+	{
+		stopListening();
+		
+		for(ClientHandler ch : activeHandlers)
+			ch.halt();
+		
+		saveChangesToFiles();
 	}
 	
 	// Obten��o da lista de produtos	
@@ -217,11 +232,18 @@ public class ShopManager {
 		writeRecordsToFile(usersFileName, userList);
 		writeRecordsToFile(reqsFileName, reqList);
 		
-	    URL countersFileURL = this.getClass().getResource(countersFileName);
-		PrintWriter pw = new PrintWriter(
-				new FileWriter(countersFileURL.getPath()));
-		pw.print(nOfProducts+"\n"+nOfUsers+"\n"+nOfReqs);
-		pw.close();
+		PrintWriter PW;
+		FileWriter FW;
+		
+		try {
+			FW = new FileWriter(countersFileName);
+			PW = new PrintWriter(FW);
+		} catch (IOException e){
+			System.out.println("Erro de escrita!");
+			return;
+		}
+		PW.print(nOfProducts+"\n"+nOfUsers+"\n"+nOfReqs);
+		PW.close();
 	}
 
 	/*
@@ -252,8 +274,20 @@ public class ShopManager {
 	
 	// Passa os dados de uma lista do programa ao seu respectivo arquivo
 	private void writeRecordsToFile(String fileName, List<? extends Record> rList) throws IOException {
-	    URL fileURL = this.getClass().getResource(fileName);
-		CSVWriter writer = new CSVWriter(new FileWriter(fileURL.getPath(), false),
+	    
+		FileWriter FW;
+		
+		try
+		{
+			FW = new FileWriter(fileName);
+		}
+		catch(IOException E)
+		{
+			System.out.println("Erro de escrita!");
+			return;
+		}
+		
+		CSVWriter writer = new CSVWriter(FW,
 			',', CSVWriter.NO_QUOTE_CHARACTER, 
 			CSVWriter.NO_ESCAPE_CHARACTER, 
 			System.getProperty("line.separator"));
@@ -270,8 +304,16 @@ public class ShopManager {
 	
 	// Passa os dados de um dos arquivos � sua respectiva lista dentro do programa
 	private void getRecordsFromFile(String fileName, List<? extends Record> rList) throws IOException {
-	    URL fileURL = this.getClass().getResource(fileName);
-		CSVReader reader = new CSVReader(new FileReader(fileURL.getPath()), ',', 
+		
+		FileReader FR;
+		
+		try{
+			FR = new FileReader(fileName);
+		} catch (FileNotFoundException e){
+			return;
+		}
+		
+		CSVReader reader = new CSVReader(FR, ',', 
 			CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.NO_ESCAPE_CHARACTER);
 		
 		// Lemos um conjunto de dados do CSV e populamos cada elemento
@@ -314,10 +356,19 @@ public class ShopManager {
 		public void run()
 		{
 			try (ServerSocket server = new ServerSocket(SERVER_PORT)) {
+				server.setSoTimeout(5000);
 				while (!haltFlag) {
-					Socket sock = server.accept();
+					
+					Socket sock;
+					try{
+						sock = server.accept();
+					}catch (SocketTimeoutException e){
+						continue;
+					}
+					
 					ClientHandler clHandler = new ClientHandler(sock);
 					new Thread(clHandler).start();
+					activeHandlers.add(clHandler);
 				}
 			} catch (IOException e) {
 				e.printStackTrace();

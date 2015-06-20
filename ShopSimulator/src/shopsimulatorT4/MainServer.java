@@ -1,8 +1,10 @@
 package shopsimulatorT4;
 
 import java.util.ArrayList;
+
 import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
 
 import shopsimulatorT4.server.*;
 import shopsimulatorT4.shared.*;
@@ -22,21 +24,32 @@ public class MainServer{
 		
 		Scanner SC = new Scanner(System.in);
 		
-		while(SC.hasNextLine())
+		boolean exitFlag = false;
+		
+		while(!exitFlag && SC.hasNextLine())
 		{
 			String[] cmdarr = parse(SC.nextLine());
 			
 			if (cmdarr[0].equals("add"))
 			{
-				Product p = new Product(cmdarr[0], cmdarr[1], Integer.parseInt(cmdarr[2]), Integer.parseInt(cmdarr[3]), Integer.parseInt(cmdarr[4]), cmdarr[5], Integer.parseInt(cmdarr[6]));
+				Product p = new Product(cmdarr[1], cmdarr[2], Integer.parseInt(cmdarr[3]), Integer.parseInt(cmdarr[4]), Integer.parseInt(cmdarr[5]), cmdarr[6], Integer.parseInt(cmdarr[7]));
 				if(shop.addProduct(p))
 					System.out.println("Produto adicionado.");
 				else
 					System.out.println("Falha ao adicionar produto.");
 			}
+			
+			if (cmdarr[0].equals("exit"))
+				exitFlag = true;
+			
 		}
 		SC.close();
+		shop.close();
 		
+		//Set<Thread> threads = Thread.getAllStackTraces().keySet();
+		
+		//for (Thread t : threads)
+			//System.out.println(t);
 		//launch(args);
 	}
 
