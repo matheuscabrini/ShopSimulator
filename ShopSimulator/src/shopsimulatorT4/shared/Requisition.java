@@ -139,4 +139,11 @@ public class Requisition extends Record implements Observer, Serializable {
 	    else 
 	    	return false;
 	}
+	
+	// Para debug
+	@Override
+	public String toString() {
+		return "prodCode: "+prodCode+"\nuserMail: "+userEmail+"\nuserName: "+userName
+				+"\namount needed: "+amountNeeded+"\n";
+	}
 }

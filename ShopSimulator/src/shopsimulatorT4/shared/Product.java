@@ -15,7 +15,7 @@ public class Product extends Record implements Serializable {
 	private int expDay = 0;
 	private int expMonth = 0;
 	private int expYear = 0;
-	private String provider = ""; // ????
+	private String provider = "";
 	private int amount = 0;
 	
 	public Product() {}; // usado por ShopManager
@@ -122,5 +122,12 @@ public class Product extends Record implements Serializable {
 	}
 	public int getAmount() {
 		return amount;
+	}
+	
+	// Para debug
+	@Override
+	public String toString() {
+		return "code: "+code+"\nname: "+name+"\nprovider: "+provider+"\namount: "
+				+amount+"\nexpDate: "+getExpDate()+"\n";
 	}
 }

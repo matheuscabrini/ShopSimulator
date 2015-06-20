@@ -23,19 +23,20 @@ import com.opencsv.CSVWriter;
 
 // TODO devo ver se d� pra fazer o programa escrever os csvs fora do bin (classpath, ver txt)
 // TODO pensar sobre se o programa est� thread-safe (se n pode ocorrer deadlocks, conflitos etc)
+// TODO logging/pdf?
 
 public class ShopManager {
 
-	// Inst�ncia �nica de ShopManager (Singleton Pattern)
+	// Instancia unica de ShopManager (Singleton Pattern)
 	private static ShopManager shopMan;
 	
-	//Instância de ClientListener (classe interna (Runnable) que espera e lida com novas conexões de clientes)
+	// Instancia de ClientListener (classe interna (Runnable) que espera e lida com novas conexoes de clientes)
 	private ClientListener clientListener;
 	
-	//Lista de instâncias de ClientHandlers sendo atualmente executadas em Threads.
+	// Lista de instancias de ClientHandlers sendo atualmente executadas em Threads.
 	private ArrayList<ClientHandler> activeHandlers;
 	
-	private final static int SERVER_PORT = 3700;
+	private final static int SERVER_PORT = 1836;
 	
 	// Caminhos para os arquivos:
     private final String productsFileName = "CSVs/Products.csv";
@@ -53,8 +54,8 @@ public class ShopManager {
 	private ArrayList<Product> prodList;
 	private ArrayList<Requisition> reqList;
 	
-	// ShopManager segue o Singleton Pattern, logo s�
-	// obtemos ele via um m�todo getInstance() 
+	// ShopManager segue o Singleton Pattern, logo so
+	// obtemos ele via um metodo getInstance() 
 	public static synchronized ShopManager getInstance() throws IOException {
 		if (shopMan == null) 
 			shopMan = new ShopManager();
@@ -65,9 +66,7 @@ public class ShopManager {
 	private ShopManager() throws IOException {		
 		
 		// Se o arquivo com as quantidades de registros existir, tais valores 
-		// s�o trazidos ao programa. Tamb�m � esperado que exista os arquivos de
-		// registros, cujos dados logo ser�o copiados ao programa.	
-		
+		// sao trazidos ao programa. 
 		try {
 			BufferedReader br = new BufferedReader(
 					new FileReader(countersFileName));
@@ -76,83 +75,94 @@ public class ShopManager {
 			nOfUsers = Integer.parseInt(br.readLine());
 			nOfReqs = Integer.parseInt(br.readLine());
 			br.close();
-		} catch (FileNotFoundException e) {
+		} catch (FileNotFoundException e) {	
 			nOfProducts = 0;
 			nOfUsers = 0;
 			nOfReqs = 0;
-		} catch(IOException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 			throw e;		
 		}
 			
+		// Populando as listas com registros dos arquivos, caso existirem:
 		
-		// Populando as listas com registros preexistentes:
+		prodList = new ArrayList<Product>();
+		if (nOfProducts > 0) {
+			prodList.ensureCapacity(nOfProducts);
+			for (int i = 0; i < nOfProducts; i++) 
+				prodList.add(new Product());
+			
+			getRecordsFromFile(productsFileName, prodList);
+		}
 		
-		prodList = new ArrayList<>(nOfProducts);
-		for (int i = 0; i < nOfProducts; i++) 
-			prodList.add(new Product());
-		getRecordsFromFile(productsFileName, prodList);
+		userList = new ArrayList<User>();
+		if (nOfUsers > 0) {
+			userList.ensureCapacity(nOfUsers);
+			for (int i = 0; i < nOfUsers; i++) 
+				userList.add(new User());
+			
+			getRecordsFromFile(usersFileName, userList);
+		}
 		
-		userList = new ArrayList<User>(nOfUsers);
-		for (int i = 0; i < nOfUsers; i++) 
-			userList.add(new User());
-		getRecordsFromFile(usersFileName, userList);
-
-		reqList = new ArrayList<Requisition>(nOfReqs);
-		for (int i = 0; i < nOfReqs; i++) 
-			reqList.add(new Requisition());
-		getRecordsFromFile(reqsFileName, reqList);
-		restartObservers(); // reassociando requisitions aos
-							// seus respectivos produtos
+		reqList = new ArrayList<Requisition>();
+		if (nOfReqs > 0) {
+			reqList.ensureCapacity(nOfReqs);
+			for (int i = 0; i < nOfReqs; i++) 
+				reqList.add(new Requisition());
+			
+			getRecordsFromFile(reqsFileName, reqList);
+			restartObservers(); // reassociando requisitions aos
+								// seus respectivos produtos
+		}
 		
-		clientListener = null;	//esse atributo ser null indica que a escuta por novas conexões de clientes não está ativa
+		clientListener = null;	// esse atributo ser null indica que a escuta por
+								// novas conexoes de clientes nao esta ativa
 		activeHandlers = new ArrayList<ClientHandler>();
 	}
 	
 	// Inicia o listening do servidor por clients em uma thread
-	// separada, pois accept() � blocking.
+	// separada, pois accept() e blocking.
 	public synchronized void listenForClients() {
 		
 		if (clientListener != null)
-			return;		//nesse caso, a escuta por clientes já está sendo feita e não é necessário reiniciá-la
+			return;		// nesse caso, a escuta por clientes ja esta sendo feita e nao e necessario reinicia-la
 		
 		clientListener = new ClientListener();
 		new Thread(clientListener).start();
 	}
 	
-	//Finaliza o listening por novas conexões de clientes, terminando propriamente a execução da thread responsável
-	public synchronized void stopListening()
-	{
+	// Finaliza o listening por novas conexoes de clientes, terminando 
+	// propriamente a execucao da thread responsavel
+	public synchronized void stopListening() {
 		if (clientListener == null)
-			return;		//nesse caso, o listening não está sendo feito - nada a fazer
+			return;	// nesse caso, o listening nao esta sendo feito - nada a fazer
 		
 		clientListener.halt();
 		clientListener = null;
 	}
 	
-	public synchronized void close() throws IOException
-	{
+	public synchronized void close() throws IOException {
 		stopListening();
 		
-		for(ClientHandler ch : activeHandlers)
+		for (ClientHandler ch : activeHandlers)
 			ch.halt();
 		
 		saveChangesToFiles();
 	}
 	
-	// Obten��o da lista de produtos	
+	// Obtendo da lista de produtos	
 	public synchronized List<Product> getProducts() {
 		return prodList;
 	}
 
-	// M�todo para adicionar um produto. N�o pode haver c�digo repetido
+	// Metodo para adicionar um produto. Nao pode haver codigo repetido
 	public synchronized boolean addProduct(Product p) {
 		if (p == null) return false;
 		
-		// C�digo do produto � a quantidade atual de produtos
+		// Codigo do produto eh a quantidade atual de produtos
 		p.setCode(nOfProducts);
 		
-		for (Product existingProduct : prodList) { // Checando se c�digo j� existe
+		for (Product existingProduct : prodList) { // Checando se codigo ja existe
 			if (existingProduct.getCode() == p.getCode())
 				return false;
 		}
@@ -162,17 +172,17 @@ public class ShopManager {
 		return true;
 	}
 	
-	// M�todo para atualizar estoque de produto por c�digo
+	// Metodo para atualizar estoque de produto por codigo
 	public synchronized void addProductAmount(int prodCode, int amount) {
 		Product p = getProductByCode(prodCode);
 		p.addAmount(amount);
 	}
 	
-	// M�todo para adicionar um usuário. N�o pode haver ID repetido
+	// Metodo para adicionar um usuario. Nao pode haver ID repetido
 	public synchronized boolean addUser(User u) {
 		if (u == null) return false;
 		
-		for (User existingUser : userList) { // Checando se ID j� existe
+		for (User existingUser : userList) { // Checando se ID ja existe
 			if (existingUser.getID().equals(u.getID()))
 				return false;
 		}
@@ -182,14 +192,14 @@ public class ShopManager {
 		return true;
 	}
 	
-	// M�todo para adicionar uma requisição. N�o pode haver requisition repetida
+	// Metodo para adicionar uma requisição. Nao pode haver requisition repetida
 	public synchronized boolean addRequisition(Requisition r) {
 		if (r == null || reqList.contains(r)) return false;
 		
 		Product p = getProductByCode(r.getProductCode());
-		if (p == null) return false; // caso o produto da requisition n�o exista
+		if (p == null) return false; // caso o produto da requisition nao exista
 
-		// Setando a requisition como observer do produto desejado pelo usu�rio
+		// Setando a requisition como observer do produto desejado pelo usuario
 		p.addObserver(r);
 		
 		reqList.add(r);
@@ -198,8 +208,8 @@ public class ShopManager {
 		return true;
 	}
 	
-	// M�todo para remover uma requisi��o. Chamado pela pr�pria 
-	// requisition ap�s enviar o email ao usu�rio
+	// Metodo para remover uma requisition. Chamado pela propria 
+	// requisition apos enviar o email ao usuario
 	public synchronized boolean removeRequisition(Requisition r) {
 		if (r == null) return false;
 		if (reqList.remove(r) == false) return false;
@@ -207,7 +217,7 @@ public class ShopManager {
 		return true;
 	}
 	
-	// M�todos de consulta no sistema
+	// Metodos de consulta no sistema
 	
 	public synchronized Product getProductByCode(int code) {
 		if (code < 0) return null;
@@ -224,8 +234,8 @@ public class ShopManager {
 		return null;
 	}
 	
-	// Esta fun��o atualiza, nos respectivos arquivos, os dados 
-	// contidos no programa sobre produtos, usu�rios, requisi��es
+	// Esta funcao atualiza, nos respectivos arquivos, os dados 
+	// contidos no programa sobre produtos, usuarios, requisitions
 	// e suas respectivas quantidades.
 	public void saveChangesToFiles() throws IOException {
 		writeRecordsToFile(productsFileName, prodList);
@@ -268,7 +278,7 @@ public class ShopManager {
 	
 	/*
 	 * 
-	 * ***** M�TODOS PRIVADOS ******** 
+	 * ***** METODOS PRIVADOS ******** 
 	 * 
 	 */
 	
@@ -277,19 +287,15 @@ public class ShopManager {
 	    
 		FileWriter FW;
 		
-		try
-		{
+		try {
 			FW = new FileWriter(fileName);
 		}
-		catch(IOException E)
-		{
+		catch (IOException e) {
 			System.out.println("Erro de escrita!");
 			return;
 		}
 		
-		CSVWriter writer = new CSVWriter(FW,
-			',', CSVWriter.NO_QUOTE_CHARACTER, 
-			CSVWriter.NO_ESCAPE_CHARACTER, 
+		CSVWriter writer = new CSVWriter(FW, ',', '"', '\\',  
 			System.getProperty("line.separator"));
 
 		// Obtendo o vetor com dados do registro, e
@@ -302,19 +308,18 @@ public class ShopManager {
 		writer.close();
 	}
 	
-	// Passa os dados de um dos arquivos � sua respectiva lista dentro do programa
+	// Passa os dados de um dos arquivos para sua respectiva lista dentro do programa
 	private void getRecordsFromFile(String fileName, List<? extends Record> rList) throws IOException {
 		
 		FileReader FR;
 		
-		try{
+		try {
 			FR = new FileReader(fileName);
-		} catch (FileNotFoundException e){
+		} catch (FileNotFoundException e) {
 			return;
 		}
 		
-		CSVReader reader = new CSVReader(FR, ',', 
-			CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.NO_ESCAPE_CHARACTER);
+		CSVReader reader = new CSVReader(FR, ',', '"', '\\');
 		
 		// Lemos um conjunto de dados do CSV e populamos cada elemento
 		// da lista de registros com tais dados
@@ -326,7 +331,7 @@ public class ShopManager {
 		reader.close();
 	}
 	
-	// M�todo a ser chamado logo ap�s a leitura inicial dos CSVs,
+	// Metodo a ser chamado logo apos a leitura inicial dos CSVs,
 	// o qual reassocia os Requisitions (observers) aos seus respectivos
 	// produtos (observables)
 	private void restartObservers() {
@@ -344,25 +349,22 @@ public class ShopManager {
 	 * 
 	 */
 	
-	class ClientListener implements Runnable
-	{
+	class ClientListener implements Runnable {
 		private boolean haltFlag;
 		
-		ClientListener()
-		{
+		ClientListener() {
 			haltFlag = false;
 		}
 		
-		public void run()
-		{
+		public void run() {
 			try (ServerSocket server = new ServerSocket(SERVER_PORT)) {
-				server.setSoTimeout(5000);
+				//server.setSoTimeout(5000);
+				
 				while (!haltFlag) {
-					
 					Socket sock;
-					try{
+					try {
 						sock = server.accept();
-					}catch (SocketTimeoutException e){
+					} catch (SocketTimeoutException e) {
 						continue;
 					}
 					
@@ -375,8 +377,7 @@ public class ShopManager {
 			}
 		}
 		
-		public void halt()
-		{
+		public void halt() {
 			haltFlag = true;
 		}
 	}

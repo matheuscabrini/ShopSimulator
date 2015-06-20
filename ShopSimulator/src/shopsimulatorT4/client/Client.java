@@ -10,13 +10,6 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.security.MessageDigest;
 import java.util.ArrayList;
-/*import java.util.Scanner;
-import java.net.UnknownHostException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.io.InputStream;
-import java.io.OutputStream;
-*/
 
 public class Client {
 
@@ -26,18 +19,22 @@ public class Client {
 	
 	public Client(String IP, int port) throws IOException {
 		clientSocket = new Socket(IP, port);
-		sendRequest(CommunicationProtocol.HANDSHAKE);
 		
+		System.out.println("abrindo streams...");
 		output = new ObjectOutputStream(clientSocket.getOutputStream());
 		output.flush(); // flush no header da stream
 		input = new ObjectInputStream(clientSocket.getInputStream());	
+		
+		System.out.println("enviando hshake...");
+		sendRequest(CommunicationProtocol.HANDSHAKE);
+		System.out.println("enviado o hshake.");
 	}
 	
 	public void closeConnection() throws IOException {
 		output.close();
 	}
 	
-	// Protocolo de comunica��o:
+	// Protocolo de comunicao:
 	public void sendRequest(byte req) throws IOException {
 		output.writeByte(req);
 	}
@@ -66,12 +63,12 @@ public class Client {
 		if (response == CommunicationProtocol.INVALID_ID)
 			return ReturnValues.ALREADY_IN_USE_ID;	
 		
-		return ReturnValues.UNKNOWN_ERROR;	//nunca é para acontecer
+		return ReturnValues.UNKNOWN_ERROR;	//nunca deve acontecer
 	}
 	
 	public ReturnValues signIn(String ID, String pass) throws Exception {
 		
-		// Criptografamos a senha com uma fun��o hash antes de envia-la
+		// Criptografamos a senha com uma funcao hash antes de envia-la
 		String passHash = new String(MessageDigest.getInstance("SHA").digest(pass.getBytes()));
 		
 		sendRequest(CommunicationProtocol.SIGN_IN); 	
@@ -89,13 +86,14 @@ public class Client {
 		if (response == CommunicationProtocol.INVALID_PASS)
 			return ReturnValues.WRONG_PASSWORD;
 		
-		return ReturnValues.UNKNOWN_ERROR;	//nunca é para acontecer
+		return ReturnValues.UNKNOWN_ERROR;	//nunca deve para acontecer
 	}
 	
-	@SuppressWarnings("unchecked")
 	public ArrayList<Product> getProducts() throws Exception {
 		sendRequest(CommunicationProtocol.PRODUCTS_LIST);
-		ArrayList<Product> ret = (ArrayList<Product>) input.readObject();;
+		System.out.println("recebendo lista de produtos...");
+		ArrayList<Product> ret = (ArrayList<Product>) input.readObject();
+		System.out.println("recebida a lista de produtos.");
 		return ret;
 	}
 	
@@ -104,33 +102,4 @@ public class Client {
 		output.writeObject(cart);
 		output.flush();
 	}
-	
-	/*
-	public static void main(String[] args) {
-		System.out.println("digite user: ");
-		Scanner scan = new Scanner(System.in);
-		String user = scan.next();
-		String line;
-		
-		try {
-			Socket socket = new Socket("localhost", 3700);
-			PrintWriter pw = new PrintWriter(
-				new OutputStreamWriter(socket.getOutputStream()), true);
-			
-			pw.println(user);
-			
-			System.out.println("digite mensagens: ");
-			while ((line = scan.next()) != null && !line.isEmpty())
-				pw.println(line);	
-			
-			scan.close();
-			pw.close();
-			socket.close();
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	*/
 }

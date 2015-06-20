@@ -51,7 +51,7 @@ public class MainClient extends Application {
 			{
 				ArrayList<Product> list = client.getProducts();
 				for (Product p : list)
-					System.out.println(p.getName());
+					System.out.println(p);
 			}
 		}
 		SC.close();

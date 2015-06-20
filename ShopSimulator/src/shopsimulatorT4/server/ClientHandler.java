@@ -40,25 +40,27 @@ class ClientHandler implements Runnable {
 	@Override
 	public void run() {
 		try {	
+			System.out.println("abrindo streams...");
 			output = new ObjectOutputStream(client.getOutputStream());
 			output.flush(); // flush no header da stream
 			input = new ObjectInputStream(client.getInputStream());
 			
-			// Antes de processar requests, devemos validar a conexï¿½o com o handshake
+			System.out.println("recebendo hshake...");
+			// Antes de processar requests, devemos validar a conexao com o handshake
 			byte request = receiveRequest();
 			if (CommunicationProtocol.HANDSHAKE != request)
 				throw new IOException("Invalid connection");
 			
-			// Lemos request do client até que ele envie sinal de
-			// fim de conexao, ou seja, retorno false de processRequest() 
-			while(!haltFlag){
+			System.out.println("lendo requests");
+			// Lemos request do client até o fim da conexão
+			while (!haltFlag) {
 				 request = receiveRequest();
 				 processRequest(request);
 			}
 			
 			output.close(); // terminando conexao
 		} catch (IOException e) {
-			String errorMsg = "Error on connection to user "+userID+" on thread ";
+			String errorMsg = "Error on connection to user "+userID+" on ";
 			System.err.println(errorMsg + Thread.currentThread());
 			e.printStackTrace();
 		}
@@ -69,7 +71,7 @@ class ClientHandler implements Runnable {
 	}
 	
 	// Retorna falso se a conexao deve terminar, true caso contrario
-	private boolean processRequest(byte request) {
+	private void processRequest(byte request) {
 		switch (request) {			
 			case CommunicationProtocol.SIGN_UP:
 				receiveSignUp();
@@ -88,12 +90,12 @@ class ClientHandler implements Runnable {
 				break;
 				
 			case CommunicationProtocol.END:
-				return false;
+				halt();
+				return;
 
 			default: // request invalida (nunca deve acontecer)
 				break;
 		}
-		return true;
 	}
 	
 	// Metodo para receber cadastro de usuario.
@@ -115,7 +117,7 @@ class ClientHandler implements Runnable {
 			else
 				sendResponse(CommunicationProtocol.INVALID_ID);				
 		} catch (IOException e) {
-			String errorMsg = "Error signing up user: "+newUser+" on thread ";
+			String errorMsg = "Error signing up user: "+newUser+" on ";
 			System.err.println(errorMsg + Thread.currentThread());
 			e.printStackTrace();
 		}
@@ -140,7 +142,7 @@ class ClientHandler implements Runnable {
 				this.userID = ID;
 			}
 		} catch (IOException e) {
-			String errorMsg = "Error signing in user: "+ID+" on thread ";
+			String errorMsg = "Error signing in user: "+ID+" on ";
 			System.err.println(errorMsg + Thread.currentThread());
 			e.printStackTrace();
 		}
@@ -153,7 +155,7 @@ class ClientHandler implements Runnable {
 			output.writeObject(list);
 			output.flush();
 		} catch (IOException e) {
-			String errorMsg = "Error on sending products to user "+userID+" on thread ";
+			String errorMsg = "Error on sending products to user "+userID+" on ";
 			System.err.println(errorMsg + Thread.currentThread());
 			e.printStackTrace();
 		}
@@ -170,7 +172,7 @@ class ClientHandler implements Runnable {
 				shopMan.addRequisition(it.next());
 			}
 		} catch (Exception e) {
-			String errorMsg = "Error on receiving purchases from: "+userID+" on thread ";
+			String errorMsg = "Error on receiving purchases from: "+userID+" on ";
 			System.err.println(errorMsg + Thread.currentThread());
 			e.printStackTrace();
 		}
