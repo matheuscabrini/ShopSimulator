@@ -20,26 +20,24 @@ public class Client {
 	public Client(String IP, int port) throws IOException {
 		clientSocket = new Socket(IP, port);
 		
-		System.out.println("abrindo streams...");
 		output = new ObjectOutputStream(clientSocket.getOutputStream());
 		output.flush(); // flush no header da stream
 		input = new ObjectInputStream(clientSocket.getInputStream());	
 		
-		System.out.println("enviando hshake...");
 		sendRequest(CommunicationProtocol.HANDSHAKE);
-		System.out.println("enviado o hshake.");
+	}
+	
+	// Protocolo de comunicao:
+	private void sendRequest(byte req) throws IOException {
+		output.writeByte(req);
+		output.flush();
+	}
+	private byte receiveResponse() throws IOException {
+		return input.readByte();
 	}
 	
 	public void closeConnection() throws IOException {
 		output.close();
-	}
-	
-	// Protocolo de comunicao:
-	public void sendRequest(byte req) throws IOException {
-		output.writeByte(req);
-	}
-	public byte receiveResponse() throws IOException {
-		return input.readByte();
 	}
 	
 	public ReturnValues signUp(String name, String address, String phone, 
@@ -89,11 +87,10 @@ public class Client {
 		return ReturnValues.UNKNOWN_ERROR;	//nunca deve para acontecer
 	}
 	
-	public ArrayList<Product> getProducts() throws Exception {
+	@SuppressWarnings("unchecked")
+	public ArrayList<Product> getProducts() throws IOException, ClassNotFoundException {
 		sendRequest(CommunicationProtocol.PRODUCTS_LIST);
-		System.out.println("recebendo lista de produtos...");
 		ArrayList<Product> ret = (ArrayList<Product>) input.readObject();
-		System.out.println("recebida a lista de produtos.");
 		return ret;
 	}
 	

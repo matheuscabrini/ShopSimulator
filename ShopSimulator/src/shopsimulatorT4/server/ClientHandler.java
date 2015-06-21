@@ -32,7 +32,8 @@ class ClientHandler implements Runnable {
 	
 	// Protocolo de comunição:
 	public void sendResponse(byte res) throws IOException {
-		output.writeByte(res);
+		output.writeByte(res); 
+		output.flush();
 	}
 	public byte receiveRequest() throws IOException {
 		return input.readByte();
@@ -40,18 +41,15 @@ class ClientHandler implements Runnable {
 	@Override
 	public void run() {
 		try {	
-			System.out.println("abrindo streams...");
 			output = new ObjectOutputStream(client.getOutputStream());
 			output.flush(); // flush no header da stream
 			input = new ObjectInputStream(client.getInputStream());
 			
-			System.out.println("recebendo hshake...");
 			// Antes de processar requests, devemos validar a conexao com o handshake
 			byte request = receiveRequest();
 			if (CommunicationProtocol.HANDSHAKE != request)
 				throw new IOException("Invalid connection");
 			
-			System.out.println("lendo requests");
 			// Lemos request do client até o fim da conexão
 			while (!haltFlag) {
 				 request = receiveRequest();

@@ -1,7 +1,6 @@
 package shopsimulatorT4.server;
 
 import java.io.BufferedReader;
-
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -27,6 +26,8 @@ import com.opencsv.CSVWriter;
 
 public class ShopManager {
 
+	private final static int SERVER_PORT = 1673;
+	
 	// Instancia unica de ShopManager (Singleton Pattern)
 	private static ShopManager shopMan;
 	
@@ -35,9 +36,7 @@ public class ShopManager {
 	
 	// Lista de instancias de ClientHandlers sendo atualmente executadas em Threads.
 	private ArrayList<ClientHandler> activeHandlers;
-	
-	private final static int SERVER_PORT = 1836;
-	
+		
 	// Caminhos para os arquivos:
     private final String productsFileName = "CSVs/Products.csv";
     private final String usersFileName = "CSVs/Users.csv";
@@ -141,19 +140,22 @@ public class ShopManager {
 		clientListener = null;
 	}
 	
+	// Metodo para liberar os recursos utilizados por ShopManager:
+	// fechar o servidor e parar as threads e conexoes dos clients.
+	// Al�m disso, salva os registros de volta para os arquivos.
 	public synchronized void close() throws IOException {
 		stopListening();
 		
 		for (ClientHandler ch : activeHandlers)
-			ch.halt();
+			ch.halt();		
 		
 		saveChangesToFiles();
 	}
 	
-	// Obtendo da lista de produtos	
-	public synchronized List<Product> getProducts() {
-		return prodList;
-	}
+	// Obtendo as listas do sistema:	
+	public synchronized ArrayList<Product> getProducts() {return prodList;}
+	public synchronized ArrayList<User> getUsers() {return userList;}
+	public synchronized ArrayList<Requisition> getRequisitions() {return reqList;}
 
 	// Metodo para adicionar um produto. Nao pode haver codigo repetido
 	public synchronized boolean addProduct(Product p) {
@@ -173,9 +175,11 @@ public class ShopManager {
 	}
 	
 	// Metodo para atualizar estoque de produto por codigo
-	public synchronized void addProductAmount(int prodCode, int amount) {
+	public synchronized boolean addProductAmount(int prodCode, int amount) {
 		Product p = getProductByCode(prodCode);
+		if (p == null) return false;
 		p.addAmount(amount);
+		return true;
 	}
 	
 	// Metodo para adicionar um usuario. Nao pode haver ID repetido
@@ -192,7 +196,7 @@ public class ShopManager {
 		return true;
 	}
 	
-	// Metodo para adicionar uma requisição. Nao pode haver requisition repetida
+	// Metodo para adicionar uma requisicao. Nao pode haver requisition repetida
 	public synchronized boolean addRequisition(Requisition r) {
 		if (r == null || reqList.contains(r)) return false;
 		
@@ -244,7 +248,6 @@ public class ShopManager {
 		
 		PrintWriter PW;
 		FileWriter FW;
-		
 		try {
 			FW = new FileWriter(countersFileName);
 			PW = new PrintWriter(FW);
@@ -258,14 +261,12 @@ public class ShopManager {
 
 	/*
 	 * 
-	 * ***** M�TODOS DEFAULT ******** 
+	 * ***** METODOS DEFAULT ******** 
 	 * 
 	 */
 	
 	// Recebe o carrinho de compras de um client e processa tais compras
-	synchronized void processPurchases(ShoppingCart cart) {
-		// TODO logging/pdf?
-		
+	synchronized void processPurchases(ShoppingCart cart) {		
 		Iterator<ShoppingCart.Purchase> it = cart.getPurchases();
 		
 		while (it.hasNext()) {
@@ -284,9 +285,7 @@ public class ShopManager {
 	
 	// Passa os dados de uma lista do programa ao seu respectivo arquivo
 	private void writeRecordsToFile(String fileName, List<? extends Record> rList) throws IOException {
-	    
 		FileWriter FW;
-		
 		try {
 			FW = new FileWriter(fileName);
 		}
@@ -310,9 +309,7 @@ public class ShopManager {
 	
 	// Passa os dados de um dos arquivos para sua respectiva lista dentro do programa
 	private void getRecordsFromFile(String fileName, List<? extends Record> rList) throws IOException {
-		
 		FileReader FR;
-		
 		try {
 			FR = new FileReader(fileName);
 		} catch (FileNotFoundException e) {
@@ -356,9 +353,10 @@ public class ShopManager {
 			haltFlag = false;
 		}
 		
+		@Override
 		public void run() {
 			try (ServerSocket server = new ServerSocket(SERVER_PORT)) {
-				//server.setSoTimeout(5000);
+				server.setSoTimeout(10000);
 				
 				while (!haltFlag) {
 					Socket sock;

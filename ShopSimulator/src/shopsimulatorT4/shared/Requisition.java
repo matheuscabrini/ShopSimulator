@@ -113,15 +113,11 @@ public class Requisition extends Record implements Observer, Serializable {
 		amountNeeded = Integer.parseInt(dataList[i]);
 	}
 
-	public int getProductCode() {
-		return prodCode;
-	}
-	public String getUserEmail() {
-		return userEmail;
-	}
-	public String getUserName() {
-		return userName;
-	}
+	// Getters:
+	public int getProductCode() {return prodCode;}
+	public String getUserEmail() {return userEmail;}
+	public String getUserName() {return userName;}
+	public int getAmountNeeded() {return amountNeeded;}
 	
 	// equals() é utilizado para remover Requisition da lista em ShopManager
 	// e para adicioná-la também
