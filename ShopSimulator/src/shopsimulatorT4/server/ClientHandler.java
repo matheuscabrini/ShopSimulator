@@ -22,7 +22,7 @@ class ClientHandler implements Runnable {
 	private boolean haltFlag; // serve para dizer se a conexão deve terminar 
 	
 	// client handler precisa saber ID do usuário que está na conexão (após login)
-	private String userID;
+	private String clientUserID;
 	
 	public ClientHandler(Socket client) throws IOException {
 		this.client = client;
@@ -58,7 +58,7 @@ class ClientHandler implements Runnable {
 			
 			output.close(); // terminando conexao
 		} catch (IOException e) {
-			String errorMsg = "Error on connection to user "+userID+" on ";
+			String errorMsg = "Error on connection to user "+clientUserID+" on ";
 			System.err.println(errorMsg + Thread.currentThread());
 			e.printStackTrace();
 		}
@@ -137,7 +137,7 @@ class ClientHandler implements Runnable {
 				sendResponse(CommunicationProtocol.INVALID_PASS);
 			else { 
 				sendResponse(CommunicationProtocol.SUCCESS);			
-				this.userID = ID;
+				this.clientUserID = ID;
 			}
 		} catch (IOException e) {
 			String errorMsg = "Error signing in user: "+ID+" on ";
@@ -153,24 +153,43 @@ class ClientHandler implements Runnable {
 			output.writeObject(list);
 			output.flush();
 		} catch (IOException e) {
-			String errorMsg = "Error on sending products to user "+userID+" on ";
+			String errorMsg = "Error on sending products to user "+clientUserID+" on ";
 			System.err.println(errorMsg + Thread.currentThread());
 			e.printStackTrace();
 		}
 	}
 	
-	// Metodo para receber do client um carrinho de compras
+	// Metodo para receber do client um carrinho de compras.
+	// Tais compras são processadas por ShopManager, o qual retorna uma lista
+	// de códigos de produtos que não estavam disponíveis, ou null, caso
+	// contrário. Depois, tratamos as requisições do usuário por produtos
+	// que já estavam indisponíveis no client.
 	private void receiveShoppingCart() {
 		try {
 			ShoppingCart cart = (ShoppingCart) input.readObject();
-			shopMan.processPurchases(cart);
 			
+			// Avaliando se as compras do cliente são válidas e efetuando-as
+			ArrayList<Integer> failList = (ArrayList<Integer>) shopMan.processPurchases(cart);
+			if (failList == null)
+				sendResponse(CommunicationProtocol.SUCCESS);
+			else { 
+				// Retornando lista de produtos inválidos para o client
+				sendResponse(CommunicationProtocol.INVALID_TRANSACTION);
+				output.writeObject(failList);
+				output.flush();
+			}
+				
+			// Ativando as requisitions por produtos desejados pelo comprador
 			Iterator<Requisition> it = cart.getRequisitions();
 			while (it.hasNext()) {
-				shopMan.addRequisition(it.next());
+				Requisition r = it.next();
+				User u = shopMan.getUserByID(clientUserID);
+				r.setUserName(u.getName());
+				r.setUserEmail(u.getEmail());
+				shopMan.addRequisition(r);
 			}
 		} catch (Exception e) {
-			String errorMsg = "Error on receiving purchases from: "+userID+" on ";
+			String errorMsg = "Error on receiving shopping cart from: "+clientUserID+" on ";
 			System.err.println(errorMsg + Thread.currentThread());
 			e.printStackTrace();
 		}

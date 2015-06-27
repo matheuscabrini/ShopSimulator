@@ -29,11 +29,11 @@ public class Requisition extends Record implements Observer, Serializable {
 	
 	public Requisition() {}; // usado por ShopManager
 	
-	public Requisition(int prodCode, String userEmail, String userName) {
-		this.prodCode = prodCode;
-		this.userEmail = userEmail;
-		this.userName = userName;
-	}
+	public Requisition(int prodCode) {this.prodCode = prodCode;}
+	
+	// Dados do usuário são setados quando a requisition chega no servidor
+	public void setUserName(String userName) {this.userName = userName;}
+	public void setUserEmail(String userEmail) {this.userEmail = userEmail;}
 	
 	// Quando houver mudança no observable product (ou seja, produto agora está disponivel)
 	// devemos mandar email ao usuário notificando-o disto
@@ -50,7 +50,6 @@ public class Requisition extends Record implements Observer, Serializable {
 		try {
 			ShopManager.getInstance().removeRequisition(this);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -119,7 +118,7 @@ public class Requisition extends Record implements Observer, Serializable {
 	public String getUserName() {return userName;}
 	public int getAmountNeeded() {return amountNeeded;}
 	
-	// equals() é utilizado para remover Requisition da lista em ShopManager
+	// equals() é utilizado para remover Requisition do sistema em ShopManager
 	// e para adicioná-la também
 	@Override
 	public boolean equals(Object other) {
@@ -127,7 +126,7 @@ public class Requisition extends Record implements Observer, Serializable {
 	    if (other == this) return true;
 	    if (!(other instanceof Requisition))return false;
 	    
-	    Requisition otherReq = (Requisition)other;
+	    Requisition otherReq = (Requisition) other;
 	    if (prodCode == otherReq.getProductCode() &&
 	    	userEmail == otherReq.getUserEmail() &&
 	    	userName == otherReq.getUserName())

@@ -9,7 +9,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.security.MessageDigest;
-import java.util.ArrayList;
+import java.util.List;
 
 public class Client {
 
@@ -37,6 +37,7 @@ public class Client {
 	}
 	
 	public void closeConnection() throws IOException {
+		sendRequest(CommunicationProtocol.END);
 		output.close();
 	}
 	
@@ -61,7 +62,7 @@ public class Client {
 		if (response == CommunicationProtocol.INVALID_ID)
 			return ReturnValues.ALREADY_IN_USE_ID;	
 		
-		return ReturnValues.UNKNOWN_ERROR;	//nunca deve acontecer
+		return ReturnValues.UNKNOWN_ERROR;	// nunca deve acontecer
 	}
 	
 	public ReturnValues signIn(String ID, String pass) throws Exception {
@@ -84,19 +85,32 @@ public class Client {
 		if (response == CommunicationProtocol.INVALID_PASS)
 			return ReturnValues.WRONG_PASSWORD;
 		
-		return ReturnValues.UNKNOWN_ERROR;	//nunca deve para acontecer
+		return ReturnValues.UNKNOWN_ERROR;	// nunca deve para acontecer
 	}
 	
 	@SuppressWarnings("unchecked")
-	public ArrayList<Product> getProducts() throws IOException, ClassNotFoundException {
+	public List<Product> getProducts() throws IOException, ClassNotFoundException {
 		sendRequest(CommunicationProtocol.PRODUCTS_LIST);
-		ArrayList<Product> ret = (ArrayList<Product>) input.readObject();
+		List<Product> ret = (List<Product>) input.readObject();
 		return ret;
 	}
 	
-	public void sendShoppingCart(ShoppingCart cart) throws IOException {
+	// Envia o carrinho de compras do usuário ao servidor. Retorna
+	// uma lista de códigos de produtos que não estavam disponíveis
+	// no servidor, se esta falha ocorrer. Caso contrário, retorna null.
+	@SuppressWarnings("unchecked")
+	public List<Integer> sendShoppingCart(ShoppingCart cart) throws IOException, ClassNotFoundException {
 		sendRequest(CommunicationProtocol.SHOPPING_CART);
 		output.writeObject(cart);
 		output.flush();
+		
+		// Recebendo o resultado das transações do carrinho:
+		byte response = receiveResponse();
+		if (response == CommunicationProtocol.INVALID_TRANSACTION) {
+			List<Integer> ret = (List<Integer>) input.readObject();
+			return ret;		
+		}
+		else // sucesso
+			return null;
 	}
 }

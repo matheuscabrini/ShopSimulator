@@ -20,13 +20,10 @@ import shopsimulatorT4.shared.ShoppingCart;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 
-// TODO devo ver se dï¿½ pra fazer o programa escrever os csvs fora do bin (classpath, ver txt)
-// TODO pensar sobre se o programa estï¿½ thread-safe (se n pode ocorrer deadlocks, conflitos etc)
-// TODO logging/pdf?
 
 public class ShopManager {
 
-	private final static int SERVER_PORT = 1673;
+	private static int SERVER_PORT; // setado no construtor privado
 	
 	// Instancia unica de ShopManager (Singleton Pattern)
 	private static ShopManager shopMan;
@@ -63,7 +60,7 @@ public class ShopManager {
 	
 	// Construtor privado, conforme Singleton Pattern
 	private ShopManager() throws IOException {		
-		
+				
 		// Se o arquivo com as quantidades de registros existir, tais valores 
 		// sao trazidos ao programa. 
 		try {
@@ -121,8 +118,9 @@ public class ShopManager {
 	
 	// Inicia o listening do servidor por clients em uma thread
 	// separada, pois accept() e blocking.
-	public synchronized void listenForClients() {
-		
+	public synchronized void listenForClients(int serverPort) {
+		SERVER_PORT = serverPort;
+
 		if (clientListener != null)
 			return;		// nesse caso, a escuta por clientes ja esta sendo feita e nao e necessario reinicia-la
 		
@@ -264,17 +262,29 @@ public class ShopManager {
 	 * ***** METODOS DEFAULT ******** 
 	 * 
 	 */
-	
-	// Recebe o carrinho de compras de um client e processa tais compras
-	synchronized void processPurchases(ShoppingCart cart) {		
+
+	// Recebe o carrinho de compras de um client e processa tais compras.
+	// Retorna-se uma lista de codigos de produtos desejados que estavam 
+	// indisponíveis no sistema, para poder avisar o comprador da falha 
+	// na transacao. Caso contrário, retorna null.
+	synchronized List<Integer> processPurchases(ShoppingCart cart) {		
 		Iterator<ShoppingCart.Purchase> it = cart.getPurchases();
+		ArrayList<Integer> failList = null; 
 		
 		while (it.hasNext()) {
 			ShoppingCart.Purchase purchase = it.next();
 			Product prod = getProductByCode(purchase.getProdCode());
 			if (prod == null) continue;
-			prod.removeAmount(purchase.getAmountPurchased());
+			
+			if (prod.getAmount() < purchase.getAmountPurchased()) { // produto indisponivel
+				if (failList == null) failList = new ArrayList<>();
+				failList.add(prod.getCode());				
+			}
+			else // produto disponivel: efetua-se a transacao
+				prod.removeAmount(purchase.getAmountPurchased());
 		}
+		
+		return failList;
 	}
 	
 	/*

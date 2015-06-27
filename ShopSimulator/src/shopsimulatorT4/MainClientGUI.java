@@ -3,15 +3,17 @@ package shopsimulatorT4;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Optional;
 
 import shopsimulatorT4.client.Client;
-import shopsimulatorT4.server.ShopManager;
-import shopsimulatorT4.server.User;
+import shopsimulatorT4.client.ReturnValues;
 import shopsimulatorT4.shared.Product;
 import shopsimulatorT4.shared.Requisition;
+import shopsimulatorT4.shared.ShoppingCart;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -21,10 +23,11 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.Alert;
-import javafx.scene.control.DatePicker;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -34,60 +37,210 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-public class MainClientGUI extends Application{
+// TODO resolver o problema de no client nao dar refresh na lista
+// TODO falta testar o envio do carrinho só com as requisitions, ou seja,
+// mandar produtos que no servidor nao tem, ai recebe sinal de falha, e manda reqs pra esses prods
+// TODO acertar o width das janelas
+
+public class MainClientGUI extends Application {
 
 	Client client; // realiza operacoes com o servidor da loja
+	static String serverIp;
+	static int serverPort;
+	ObservableList<Product> productList; // mais recente lista de produtos obtida do servidor
+	ShoppingCart shopCart; // referência ao carrinho de compras que será utilizado
+						   // em várias janelas do programa
    
 	Stage primaryStage; // tela principal do programa
-    MenuBar menuBar; // menu do canto esquerdo superior, com File, Actions...
-    TableView<Product> tableP;// tabela de produtos
-    Tab tabP; // aba com tabela de produtos
+    MenuBar menuBar; // menu do canto esquerdo superior, com System e Shopping Cart
+    TableView<Product> prodTable; // tabela de produtos
+    TableView<ShoppingCart.Purchase> cartTable; // tabela com dados do carrinho de compras
 
     String iconPath = "resources/icon3.png";
 	
 	public static void main(String[] args) {
+		if (args.length == 2) {
+			serverIp = args[0];
+			serverPort = Integer.parseInt(args[1]);
+			launch(args);
+		}
+		else 
+			System.out.println("usage: <server ip> <server port>");
+		
 		launch(args);
 	}
 	
-	// Aqui, nesta tela inicial, é requisitado do usuário a port do server
 	@Override
-	public void start(Stage primaryStage) {			
+	public void start(Stage primaryStage) {	
+		
+		// Tentando estabelecer conexao com o servidor:
 		try {
-			client = new Client("localhost", 1673);
+			client = new Client(serverIp, serverPort);
+			showSuccessDialog("Succesfully connected to server.");
 		} catch (IOException e) {
-			showExceptionDialog("Error ocurred while connecting to server.", e);
+			showExceptionDialog("Error ocurred while connecting to server on "
+					+ serverIp + " , port " + serverPort, e);
 			return;
 		}
-
-		Scene scene = new Scene(new Group());
+		
 		this.primaryStage = primaryStage;
-		primaryStage.setWidth(700);
-		//primaryStage.setHeight(700);
+		Scene scene = new Scene(new Group());
 		primaryStage.setTitle("Shop Client");
 		try {
 			primaryStage.getIcons().add(new Image(this.getClass().
 	    		getClassLoader().getResourceAsStream(iconPath)));
 		} catch (Exception e) {
-			showExceptionDialog("Exception while loading icon.", e);
+			showExceptionDialog("Error while loading icon.", e);
 		}
 		
-		initMenus(); // Inicializando menus File, Actions
+		Label title = new Label("Shop Simulator !");
+		title.setAlignment(Pos.CENTER);
+		
+		TextField idField = new TextField();
+		idField.setPromptText("ID");
+		PasswordField passField = new PasswordField();
+		passField.setPromptText("Password");
+		VBox fields = new VBox(5, idField, passField);
+		fields.setAlignment(Pos.CENTER);
+		
+		Button signInButton = new Button("Sign in");
+		Button signUpButton = new Button("Create new account...");
+		HBox buttons = new HBox(5, signInButton, signUpButton);
+		buttons.setAlignment(Pos.CENTER);
+		
+		VBox vbox = new VBox(10, title, fields, buttons);
+		vbox.setAlignment(Pos.CENTER);
+		vbox.setPadding(new Insets(10, 10, 10, 10));
+
+		signInButton.setOnAction((ev) -> {
+			signIn(idField.getText(), passField.getText());
+		});
+		
+		signUpButton.setOnAction((ev) -> {
+			signUpScreen();
+		});
+		
+        ((Group) scene.getRoot()).getChildren().addAll(vbox);
+        primaryStage.setScene(scene);
+        primaryStage.show();
+		vbox.requestFocus();
+	}
+	
+	// Tentamos conectar o usuario ao sistema com os dados que forneceu.
+	// Se o servidor retorna o codigo de sucesso, o usuario é levado a tela
+	// principal da loja, senão, avisamos ele de qual erro ocorreu.
+	void signIn(String id, String pass) {
+		try {
+			ReturnValues ret = client.signIn(id, pass);
+			if (ret == ReturnValues.SUCCESS) {
+				showSuccessDialog("You are now logged in the server.");
+				initShopScreen();
+			}
+			else if (ret == ReturnValues.NO_SUCH_ID) 
+				showErrorDialog("This ID does not exist! Are you sure it is correct?");
+			else if (ret == ReturnValues.WRONG_PASSWORD) 
+				showErrorDialog("Wrong password! Please, try again.");
+			else
+				showErrorDialog("Unknown error.");
+		} catch (Exception e) {
+			showExceptionDialog("Error while signing in on the server", e);
+		}
+	}
+	
+	// Tela de criação de nova conta no sistema. Deve-se preencher todos os dados
+	void signUpScreen() {
+		Stage signUpStage = new Stage();
+		signUpStage.setTitle("New account");
+		
+		TextField idField = new TextField();
+		idField.setPromptText("ID");
+		TextField passField = new TextField();
+		passField.setPromptText("Password");
+		TextField nameField = new TextField();
+		nameField.setPromptText("Name");
+		TextField emailField = new TextField();
+		emailField.setPromptText("Email");
+		TextField addressField = new TextField();
+		addressField.setPromptText("Address");
+		TextField phoneField = new TextField();
+		phoneField.setPromptText("Phone");
+        
+        Label errorMsg = new Label("Please, enter ALL the fields."); 
+        errorMsg.setVisible(false);
+        
+        Button bOK = new Button("OK");
+        bOK.setOnAction( (ev) -> {
+        	if (idField.getText().isEmpty() || passField.getText().isEmpty() ||
+        		nameField.getText().isEmpty() || emailField.getText().isEmpty() ||
+        		addressField.getText().isEmpty() || phoneField.getText().isEmpty() ) {
+        		errorMsg.setVisible(true);
+        		return;
+        	}
+        	
+        	// Fazendo o cadastro no servidor e obtendo sua resposta:
+        	ReturnValues ret;
+			try {
+				ret = client.signUp(nameField.getText(), addressField.getText(), 
+						phoneField.getText(), emailField.getText(), 
+						idField.getText(), passField.getText());
+			} catch (Exception e) {
+				showExceptionDialog("Error while signing up new user on server", e);
+				return;
+			}
+        	
+        	if (ret == ReturnValues.SUCCESS)
+        		showSuccessDialog("Account was succesfully created! :)");
+        	else if (ret == ReturnValues.ALREADY_IN_USE_ID)
+        		showErrorDialog("This ID is already in use. :(");
+        	else 
+        		showErrorDialog("Unknown error! Please, try restarting. :(");
+        	
+        	signUpStage.close();
+        });
+        
+		VBox vbox = new VBox(5, idField, passField, nameField, emailField,
+				addressField, phoneField, errorMsg, bOK);
+		vbox.setAlignment(Pos.CENTER);
+		vbox.setPadding(new Insets(10, 10, 10, 10));
+		
+		signUpStage.setScene(new Scene(vbox));
+		signUpStage.initModality(Modality.APPLICATION_MODAL); // pra nao poder sair desta tela
+		signUpStage.show();
+		vbox.requestFocus();
+	}
+	
+	// Desenha a tela principal da loja na tela, com os produtos e menus para compra.
+	void initShopScreen() {
+		Scene scene = new Scene(new Group());
+
+		//primaryStage.setWidth(700);
+		//primaryStage.setHeight(700);
+		
+		initMenus(); // Inicializando menus System e Shopping Cart
 		
 		// Inicializando tabelas e seus containers (tabs\abas)
 		
-		tableP = new TableView<Product>(); // tabela de produtos
+		prodTable = new TableView<Product>(); // tabela de produtos
 		initProductTable();
-		tabP = new Tab("Products");
-		tabP.setContent(tableP);
-		tabP.setClosable(false);
+		Tab prodTab = new Tab("Products");
+		prodTab.setContent(prodTable);
+		prodTab.setClosable(false);
+		
+		shopCart = new ShoppingCart();
+		cartTable = new TableView<ShoppingCart.Purchase>(); // tabela de compras
+		initCartTable();
+		Tab cartTab = new Tab("Shopping Cart");
+		cartTab.setContent(cartTable);
+		cartTab.setClosable(false);
         
-        TabPane tabPane = new TabPane(tabP);
+        TabPane tabPane = new TabPane(prodTab, cartTab);
         tabPane.setMinWidth(700);
         VBox vbox = new VBox(5);
         vbox.getChildren().addAll(menuBar, tabPane);
@@ -101,169 +254,121 @@ public class MainClientGUI extends Application{
 	// Aqui inicializa-se o menu do canto esquerdo-superior da tela principal
 	// que possibilita as as diferentes operações do usuário sobre o sistema 
 	void initMenus() {
-        Menu menuFile = new Menu("File");
-        Menu menuActions = new Menu("Actions");
-        
-		Menu menuFileSave = new Menu("Save");
-        menuFileSave.setOnAction(ev -> {
-        	saveChanges();
-        	menuFile.hide();
+        Menu menuSystem = new Menu("System");
+        Menu menuCart = new Menu("Actions");
+
+        Menu menuSystemRefresh = new Menu("Refresh product list");
+        menuSystemRefresh.setOnAction(ev -> {
+        	initProductTable();
+        	menuSystem.hide();
         });
         
-        Menu menuFileExit = new Menu("Exit");
-        menuFileExit.setOnAction(ev -> {
+        Menu menuSystemExit = new Menu("Exit");
+        menuSystemExit.setOnAction(ev -> {
         	exitProgram();
         });
-        	
-        Menu menuNewProduct = new Menu("New product...");
-        menuNewProduct.setOnAction(ev -> {
-        	createProduct();
-        });
-        
-        Menu menuUpdateProduct = new Menu("Update product amount...");
-        menuUpdateProduct.setOnAction(ev -> {
-        	updateProduct();
-        });
-        
-        Menu menuRefresh = new Menu("Refresh tables");
-        menuRefresh.setOnAction(ev -> {
-        	initProductTable();
-        	initUserTable();
-        	initRequisitionTable();
-        	menuActions.hide();
-        });
-        
-        menuFile.getItems().addAll(menuFileSave, new SeparatorMenuItem(), menuFileExit);
-        menuActions.getItems().addAll(menuNewProduct, menuUpdateProduct, 
-        		new SeparatorMenuItem(), menuRefresh);
 
-        menuBar = new MenuBar(menuFile, menuActions);
+        Menu menuCartAdd = new Menu("Add product...");
+        menuCartAdd.setOnAction(ev -> {
+        	addProductScreen();
+        });
+        
+        Menu menuCartConfirm = new Menu("Confirm purchases...");
+        menuCartConfirm.setOnAction(ev -> {
+        	cartConfirmScreen();
+        });
+        
+        menuSystem.getItems().addAll(menuSystemRefresh, new SeparatorMenuItem(), menuSystemExit);
+        menuCart.getItems().addAll(menuCartAdd, menuCartConfirm);
+
+        menuBar = new MenuBar(menuSystem, menuCart);
 	}
 	
 	// Inicialização (e atualização, quando necessário) da tabela de produtos
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	void initProductTable() {
+		Platform.runLater(()-> {
+			// Obtendo os produtos do servidor:
+			try {
+				ArrayList<Product> temp = (ArrayList<Product>) client.getProducts();
+				productList = FXCollections.observableArrayList(temp);
+			} catch (Exception e) {
+				showExceptionDialog("Error while fetching product list from server.", e);
+				return;
+			}
+			
+			prodTable.setPlaceholder(new Label("No products to show"));
+			
+	        TableColumn<Product, Integer> codeCol = new TableColumn<Product, Integer>("Code");
+	        codeCol.setCellValueFactory(new PropertyValueFactory<>("code"));
+	        
+	        TableColumn<Product, String> nameCol = new TableColumn<Product, String>("Name");
+	        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+	        
+	        TableColumn<Product, String> expCol = new TableColumn<Product, String>("Expiration Date");
+	        expCol.setCellValueFactory(new PropertyValueFactory<>("expDate"));
+	        
+	        TableColumn<Product, String> priceCol = new TableColumn<Product, String>("Price ($)");        
+	        priceCol.setCellValueFactory(new PropertyValueFactory<>("price"));
+	        
+	        TableColumn<Product, String> providerCol = new TableColumn<Product, String>("Provider");
+	        providerCol.setCellValueFactory(new PropertyValueFactory<>("provider"));
+	        
+	        TableColumn<Product, Integer> amountCol = new TableColumn<Product, Integer>("Amount");
+	        amountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
+	        
+	        // Associando a lista de produtos à tabela:
+	        prodTable.setItems(productList);
+	        prodTable.setEditable(false);
+	        if (prodTable.getColumns().isEmpty())
+	        	prodTable.getColumns().addAll(codeCol, nameCol, expCol, priceCol, providerCol, amountCol);
+	        ((TableColumn) prodTable.getColumns().get(0)).setVisible(false); // update na tabela
+	        ((TableColumn) prodTable.getColumns().get(0)).setVisible(true);
+		});
+	}
+
+	// Inicialização (e atualização, quando necessário) da tabela 
+	// de compras presentes no carrinho do cliente.
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	void initCartTable() {
+		cartTable.setPlaceholder(new Label("No products in your shopping cart.\nBuy something! :D"));
 		
-		// Obtendo os produtos do servidor:
-		ArrayList<Product> productList;
-		try {
-			productList = client.getProducts();
-		} catch (IOException e) {
-			showExceptionDialog("Erro na transmissão de produtos do servidor.", e);
-			return;
-		} catch (ClassNotFoundException e) {
-			showExceptionDialog("Erro na transmissão de produtos do servidor.", e);
-			return;
-		}
-		
-		tableP.setPlaceholder(new Label("No products to show"));
-		
-		// Os procedimentos abaixo tornarão possível que a tabela
-		// obtenha os dados de cada livro na lista do sistema 
-		// por meio de seus getters.
-		
-        TableColumn<Product, Integer> codeCol = new TableColumn<Product, Integer>("Code");
-        codeCol.setCellValueFactory(new PropertyValueFactory<>("code"));
+        TableColumn<ShoppingCart.Purchase, Integer> codeCol = 
+        		new TableColumn<ShoppingCart.Purchase, Integer>("Code");
+        codeCol.setCellValueFactory(new PropertyValueFactory<>("prodCode"));
         
-        TableColumn<Product, String> nameCol = new TableColumn<Product, String>("Name");
-        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        TableColumn<ShoppingCart.Purchase, String> priceCol = 
+        		new TableColumn<ShoppingCart.Purchase, String>("Price ($)");        
+        priceCol.setCellValueFactory(new PropertyValueFactory<>("prodPrice"));
         
-        TableColumn<Product, String> expCol = new TableColumn<Product, String>("Expiration Date");
-        expCol.setCellValueFactory(new PropertyValueFactory<>("expDate"));
+        TableColumn<ShoppingCart.Purchase, Integer> amountCol = 
+        		new TableColumn<ShoppingCart.Purchase, Integer>("Amount");
+        amountCol.setCellValueFactory(new PropertyValueFactory<>("amountPurchased"));
         
-        TableColumn<Product, String> priceCol = new TableColumn<Product, String>("Price ($)");        
-        priceCol.setCellValueFactory(new PropertyValueFactory<>("price"));
+        // Associando a lista de compras à tabela:
+		ObservableList<ShoppingCart.Purchase> purchasesList = FXCollections.observableArrayList();
+		Iterator<ShoppingCart.Purchase> it = shopCart.getPurchases();
+		while (it.hasNext()) 
+			purchasesList.add(it.next());
         
-        TableColumn<Product, String> providerCol = new TableColumn<Product, String>("Provider");
-        providerCol.setCellValueFactory(new PropertyValueFactory<>("provider"));
+		cartTable.setItems(purchasesList);
         
-        TableColumn<Product, Integer> amountCol = new TableColumn<Product, Integer>("Amount");
-        amountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
-        
-        // Associando a lista de livros à tabela:
-		ObservableList<Product> pList = FXCollections.observableArrayList((productList));
-        tableP.setItems(pList);
-        tableP.setEditable(false);
-        if (tableP.getColumns().isEmpty())
-        	tableP.getColumns().addAll(codeCol, nameCol, expCol, priceCol, providerCol, amountCol);
-        ((TableColumn) tableP.getColumns().get(0)).setVisible(false); // update na tabela
-        ((TableColumn) tableP.getColumns().get(0)).setVisible(true);
+        cartTable.setEditable(false);
+        if (cartTable.getColumns().isEmpty())
+        	cartTable.getColumns().addAll(codeCol, priceCol, amountCol);
+        ((TableColumn) cartTable.getColumns().get(0)).setVisible(false); // update na tabela
+        ((TableColumn) cartTable.getColumns().get(0)).setVisible(true);
 	}
 	
-	// Este método cria uma tela nova, na qual podem ser digitados
-	// os diferentes campos possíveis para o registro de um produto
-	void createProduct() {
-		Stage productStage = new Stage();
-		productStage.setTitle("New product");
-				
-		TextField nameField = new TextField();
-		nameField.setPromptText("Name");
-		TextField amntField = new TextField();
-		amntField.setPromptText("Amount in stock");
-		TextField provField = new TextField();
-		provField.setPromptText("Provider");
-		TextField priceField = new TextField();
-		priceField.setPromptText("Price (format ex.: 4,99)");
-		DatePicker dPicker = new DatePicker();
-		dPicker.setPromptText("Expiration date");
-		
-        // Mensagem de erro caso user nao digite os campos corretamente
-        Label errorMsg = new Label(); 
-        errorMsg.setVisible(false);
-        
-        Button bOK = new Button("OK");
-        bOK.setOnAction( (ev) -> {
-        	
-        	if (nameField.getText().isEmpty() || 
-            	amntField.getText().isEmpty() ||
-            	priceField.getText().isEmpty() || 
-            	provField.getText().isEmpty() ||
-            	dPicker.getValue() == null) {
-        		errorMsg.setText("Please, fill in all the fields correctly.");
-            	errorMsg.setVisible(true);
-           		return;
-           	}
-        	
-        	int amount;
-        	try {
-        		amount = Integer.parseInt(amntField.getText());	
-        	} catch (NumberFormatException e) {
-        		errorMsg.setText("Amount should be a valid number.");
-        		errorMsg.setVisible(true);
-        		return;
-        	}
-        	
-        	LocalDate date = dPicker.getValue();
-        	Product p = new Product(nameField.getText(), 
-        			priceField.getText(), date.getDayOfMonth(), 
-        			date.getMonthValue(), date.getYear(), 
-        			provField.getText(), amount);
-        	shopMan.addProduct(p);
-        	
-        	initProductTable();
-        	productStage.hide();
-        	showSuccessDialog("Product was succesfully added to the system.");
-        });
-        
-		VBox vbox = new VBox(5, nameField, amntField, provField, 
-				priceField, dPicker, errorMsg, bOK);
-		vbox.setAlignment(Pos.CENTER);
-		vbox.setPadding(new Insets(10, 10, 10, 10));
-		
-		productStage.setScene(new Scene(vbox));
-		productStage.initModality(Modality.APPLICATION_MODAL);
-		productStage.show();
-		vbox.requestFocus();
-	}
-	
-	void updateProduct() {
-		Stage updateProdStage = new Stage();
-		updateProdStage.setTitle("Update product amount");
+	// Tela onde se adiciona um produto no carrinho de compras
+	void addProductScreen() {
+		Stage addProductStage = new Stage();
+		addProductStage.setTitle("Add product to shopping cart");
 		
 		TextField codeField = new TextField();
 		codeField.setPromptText("Product code");
 		TextField amountField = new TextField();
-		amountField.setPromptText("Amount to add");
+		amountField.setPromptText("Amount to buy");
         
         // Mensagem de erro caso user nao digite codigo ou amount
         Label errorMsg = new Label("Please, enter product code AND it's amount."); 
@@ -271,60 +376,163 @@ public class MainClientGUI extends Application{
         
         Button bOK = new Button("OK");
         bOK.setOnAction( (ev) -> {
-        	if (codeField.getText().isEmpty() || 
-        		amountField.getText().isEmpty()) {
+        	
+        	if (codeField.getText().isEmpty() || amountField.getText().isEmpty()) {
         		errorMsg.setVisible(true);
         		return;
         	}
         	
-        	int code, amount;
+        	int code, amountBought;
         	try {
         		code = Integer.parseInt(codeField.getText());
-        		amount = Integer.parseInt(amountField.getText());
+        		amountBought = Integer.parseInt(amountField.getText());
         	} catch (NumberFormatException e) {
         		errorMsg.setVisible(true);
         		return;
         	}
         	
-        	// verificando se código de produto foi valido e se o update deu certo
-        	if (shopMan.addProductAmount(code, amount) == false) {
-        		showErrorDialog("Invalid product code.");
+        	// verificando se código de produto foi valido e se tem a quantidade
+        	// desejada de produtos de acordo com a lista que o client possui no momento
+        	Product productBought = null;
+        	for (Product product : productList) {
+				if (code == product.getCode()) {
+					productBought = product;
+					
+					// Se produto nao estiver disponivel, oferecemos a notificacao
+					// por email ao usuario ao reestoque do produto
+					if (productBought.getAmount() < amountBought) {
+						showRequisitionDialog(code, productBought.getName());
+						return;
+					}
+					
+					break;
+				}
+			}
+        	
+        	if (productBought == null) { // Codigo digitado nao foi encontrado no sistema
+        		showErrorDialog("Invalid product! \nAre you sure the product code is correct?");
         		return;
         	}
-        	
-    		initProductTable();
-        	initRequisitionTable();
-        	updateProdStage.hide();
-        	showSuccessDialog(amount + " units of "
-        			+ shopMan.getProductByCode(code).getName() + " were added.");
+        		
+        	shopCart.addPurchase(code, amountBought, productBought.getPrice());
+    		initCartTable();
+        	addProductStage.hide();
         });
         
 		VBox vbox = new VBox(5, codeField, amountField, errorMsg, bOK);
 		vbox.setAlignment(Pos.CENTER);
 		vbox.setPadding(new Insets(10, 10, 10, 10));
 		
-		updateProdStage.setScene(new Scene(vbox));
-		updateProdStage.initModality(Modality.APPLICATION_MODAL); // pra nao poder sair desta tela
-		updateProdStage.show();
+		addProductStage.setScene(new Scene(vbox));
+		addProductStage.initModality(Modality.APPLICATION_MODAL); // pra nao poder sair desta tela
+		addProductStage.show();
 		vbox.requestFocus();
 	}
-    
-    void saveChanges() {
-		try {
-			shopMan.saveChangesToFiles();
-		} catch (IOException e) {
-			showExceptionDialog("Error ocurred while saving data to files.", e);
-		}
-    }
 	
-	// Método para encerrar o programa, que deve ser synchronized
-	// para não atrapalhar quaisquer operações que estejam sendo feitas
-	// sobre o sistema no momento
-    synchronized void exitProgram() {
+	// Tela de confirmação para envio das compras ao servidor
+	void cartConfirmScreen() {
+		if (shopCart.isEmpty()) {
+			showErrorDialog("Your shopping cart is empty.");
+			return;
+		}
+			
+		Alert alert = new Alert(AlertType.CONFIRMATION);
+		alert.setTitle("Confirmation Dialog");
+		alert.setHeaderText("Confirm purchase(s)");
+		alert.setContentText("The total price of your purchases is $" + shopCart.getTotalPrice()
+				+ "\nClick OK to complete your transaction!");
+		
+		Optional<ButtonType> result = alert.showAndWait();
+		if (result.get() == ButtonType.CANCEL) {
+			alert.close();
+			return;
+		}
+		
+		// Enviando o carrinho ao servidor, obtendo a possível lista
+		// de códigos de produtos que la não estavam disponiveis:
 		try {
-			shopMan.close();
+			sendShoppingCart();
+		} catch (Exception e) {
+			showExceptionDialog("Error while sending purchases to server.", e);
+		}
+	}
+	
+	// Realiza a operação de enviar as compras ao servidor, colocando na
+	// tela a lista de produtos que estavam indisponiveis 
+	void sendShoppingCart() throws IOException, ClassNotFoundException {
+	    ArrayList<Integer> failList;
+		failList = (ArrayList<Integer>) client.sendShoppingCart(shopCart);
+		shopCart = new ShoppingCart(); // Discartando carrinho recém-enviado
+		initCartTable();
+
+		// Se a transação deu certo:
+		if (failList == null) {
+			showSuccessDialog("Transaction completed! :)");
+			return;
+		}
+		
+		// conterá os nomes e codigos dos produtos indisponiveis
+	    StringBuilder builder = new StringBuilder();
+
+		for (Integer code: failList) {
+			for (Product prod : productList) {
+				if (code == prod.getCode()) {
+					builder.append(prod.getName() + " (Code " + code + ")\n");
+					break;
+				}
+			}
+		}
+		
+		// Abrindo janela com a lista de produtos indisponiveis e
+		// escolha do usuário de ser notificado ao reestoque no sistema
+	    Alert alert = new Alert(AlertType.CONFIRMATION);
+	    alert.setTitle("Unavailable products");
+	    alert.setContentText("The following products were unavailable"
+	    		+ "in the server at the moment of purchase. Click OK and"
+	    		+ "you will be notified via email when they are restocked.");
+		
+	    TextArea textArea = new TextArea(builder.toString());
+	    textArea.setEditable(false);
+	    textArea.setWrapText(true);
+	    textArea.setMaxWidth(Double.MAX_VALUE);
+	    textArea.setMaxHeight(Double.MAX_VALUE);
+	    GridPane.setVgrow(textArea, Priority.ALWAYS);
+	    GridPane.setHgrow(textArea, Priority.ALWAYS);
+	    
+	    GridPane expContent = new GridPane();
+	    expContent.setMaxWidth(Double.MAX_VALUE);
+	    expContent.add(textArea, 0, 0);
+
+	    // Colocando o texto expandível no dialog
+	    alert.getDialogPane().setExpandableContent(expContent);
+	
+		Optional<ButtonType> result = alert.showAndWait();
+		if (result.get() == ButtonType.CANCEL) {
+			alert.close();
+			return;
+		}
+		
+		// Como o usuário quer ser notificado, colocamos as requisitions
+		// por cada produto em um carrinho e o enviamos ao servidor
+		ShoppingCart reqCart = new ShoppingCart();
+		for (Integer code : failList) 
+			reqCart.addRequisition(new Requisition(code));
+		
+		try {
+			client.sendShoppingCart(reqCart);
+		} catch (Exception e) {
+			showExceptionDialog("Error while sending requisitions to server", e);
+		}
+		
+		alert.close();
+	}
+	
+	// Encerramento do programa: fechamos a conexao com servidor
+    void exitProgram() {
+		try {
+			client.closeConnection();
 		} catch (IOException e) {
-			showExceptionDialog("Error ocurred while saving data to files.", e);
+			showExceptionDialog("Error ocurred while disconnecting from server.", e);
 		}
 		primaryStage.hide();
     }
@@ -336,12 +544,32 @@ public class MainClientGUI extends Application{
 		exitProgram();
 	}
 	
+	// Métodos para gerar janelas de alerta para algum resultado
+	// dentro do programa (dialogs):
+	
 	void showSuccessDialog(String msg) {
 		Alert alert = new Alert(AlertType.INFORMATION);
 		alert.setTitle("Information Dialog");
 		alert.setHeaderText("Success!");
 		alert.setContentText(msg);
 		alert.showAndWait();
+	}
+	
+	void showRequisitionDialog(int productCode, String productName) {
+		Alert alert = new Alert(AlertType.CONFIRMATION);
+		alert.setTitle("Confirmation Dialog");
+		alert.setHeaderText("This amount of "+productName+" is unavailable in our store"
+				+ " at the moment...");
+		alert.setContentText("Would you like to be notified via email when the product"
+				+ " is restocked? This request will be activated when you confirm your purchases.");
+		
+		Optional<ButtonType> response = alert.showAndWait();
+		if (response.get() == ButtonType.OK) {
+			// Colocando a requisition no carrinho:
+			shopCart.addRequisition(new Requisition(productCode));
+		}
+		
+		alert.close();		
 	}
 	
 	void showErrorDialog(String msg) {

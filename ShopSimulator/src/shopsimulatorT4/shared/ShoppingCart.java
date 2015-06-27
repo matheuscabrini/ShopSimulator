@@ -50,6 +50,10 @@ public class ShoppingCart implements Serializable {
 		return reqList.iterator();
 	}
 	
+	public boolean isEmpty() {
+		return purchaseList.isEmpty();
+	}
+	
 	// Retorna preço total da compra
 	public String getTotalPrice() {
 		double total = 0;
@@ -60,7 +64,7 @@ public class ShoppingCart implements Serializable {
 			total += priceD * purchase.getAmountPurchased();
 		}
 		
-		DecimalFormat format = new DecimalFormat("0.00"); // pra imprimir 2 casas decimais
-		return "" + Double.parseDouble(format.format(total));
+		DecimalFormat format = new DecimalFormat("#.00"); // pra imprimir 2 casas decimais
+		return "" + format.format(total);
 	}
 }

@@ -40,6 +40,7 @@ import javafx.stage.Stage;
 
 public class MainServerGUI extends Application{
 
+	static int serverPort;
 	ShopManager shopMan; // realiza operacoes no sistema da loja (servidor e arquivos)
    
 	Stage primaryStage; // tela principal do programa
@@ -47,22 +48,24 @@ public class MainServerGUI extends Application{
     TableView<Product> tableP;// tabela de produtos
     TableView<User> tableU; // tabela de users
     TableView<Requisition> tableR; // tabela de requisitions
-    Tab tabP; // aba com tabela de produtos
-    Tab tabU; // aba com tabela de users
-    Tab tabR; // aba com tabela de requisitions
     
-    String iconPath = "resources/icon3.png";
+    static final String ICON_PATH = "resources/icon3.png";
 	
 	public static void main(String[] args) {
-		launch(args);
+		if (args.length == 1) {
+			serverPort = Integer.parseInt(args[0]);
+			launch(args);
+		}
+		else 
+			System.out.println("usage: <server port>");
 	}
 	
 	// Aqui, nesta tela inicial, é requisitado do usuário a port do server
 	@Override
-	public void start(Stage primaryStage) {			
+	public void start(Stage primaryStage) {
 		try {
 			shopMan = ShopManager.getInstance();
-			shopMan.listenForClients();
+			shopMan.listenForClients(serverPort);
 		} catch (IOException e) {
 			showExceptionDialog("Error ocurred while opening files.", e);
 			return;
@@ -75,7 +78,7 @@ public class MainServerGUI extends Application{
 		primaryStage.setTitle("Shop Server");
 		try {
 			primaryStage.getIcons().add(new Image(this.getClass().
-	    		getClassLoader().getResourceAsStream(iconPath)));
+	    		getClassLoader().getResourceAsStream(ICON_PATH)));
 		} catch (Exception e) {
 			showExceptionDialog("Exception while loading icon.", e);
 		}
@@ -86,19 +89,19 @@ public class MainServerGUI extends Application{
 		
 		tableP = new TableView<Product>(); // tabela de produtos
 		initProductTable();
-		tabP = new Tab("Products");
+		Tab tabP = new Tab("Products");
 		tabP.setContent(tableP);
 		tabP.setClosable(false);
 		
 		tableU = new TableView<User>(); // tabela de users
 		initUserTable();
-		tabU = new Tab("Users");
+		Tab tabU = new Tab("Users");
 		tabU.setContent(tableU);
 		tabU.setClosable(false);
 		
 		tableR = new TableView<Requisition>(); // tabela de requisitions
 		initRequisitionTable();
-		tabR = new Tab("Requisitions");
+		Tab tabR = new Tab("Requisitions");
         tabR.setContent(tableR);
         tabR.setClosable(false);
         
@@ -183,7 +186,7 @@ public class MainServerGUI extends Application{
         TableColumn<Product, Integer> amountCol = new TableColumn<Product, Integer>("Amount");
         amountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
         
-        // Associando a lista de livros à tabela:
+        // Associando a lista de produtos à tabela:
 		ObservableList<Product> pList = FXCollections.observableArrayList((shopMan.getProducts()));
         tableP.setItems(pList);
         tableP.setEditable(false);
@@ -325,6 +328,7 @@ public class MainServerGUI extends Application{
 		vbox.requestFocus();
 	}
 	
+	// Tela de update no estoque de um produto.
 	void updateProduct() {
 		Stage updateProdStage = new Stage();
 		updateProdStage.setTitle("Update product amount");
@@ -378,6 +382,7 @@ public class MainServerGUI extends Application{
 		vbox.requestFocus();
 	}
     
+	// Salva nos arquivos as mudanças feitas no sistema.
     void saveChanges() {
 		try {
 			shopMan.saveChangesToFiles();
@@ -404,6 +409,9 @@ public class MainServerGUI extends Application{
 	public void stop() {
 		exitProgram();
 	}
+	
+	// Métodos para gerar janelas de alerta para algum resultado
+	// dentro do programa (dialogs):
 	
 	void showSuccessDialog(String msg) {
 		Alert alert = new Alert(AlertType.INFORMATION);

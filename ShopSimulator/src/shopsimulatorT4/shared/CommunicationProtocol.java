@@ -11,6 +11,7 @@ public class CommunicationProtocol {
 	public static final byte HANDSHAKE = 4; // início da comunicação
 	public static final byte INVALID_ID = 5; // erro: signin com ID não cadastrado ou signup com ID já existente
 	public static final byte INVALID_PASS = 6; // erro: signin com senha errada
-	public static final byte SUCCESS = 7; // signup/signin válido
-	public static final byte END = 8; // termina conexão 
+	public static final byte INVALID_TRANSACTION = 7; // erro: tentou-se comprar algo não disponivel no servidor
+	public static final byte SUCCESS = 8; // signup/signin válido
+	public static final byte END = 9; // termina conexão 
 }
