@@ -5,7 +5,8 @@ import java.util.ArrayList;
 
 import shopsimulatorT4.server.Record;
 
-// TODO juntar expday, month e year em uma String só? 
+@SuppressWarnings("serial")
+// Classe para representação de um produto da loja
 public class Product extends Record implements Serializable {
 	
 	// Campos presentes nos arquivos:

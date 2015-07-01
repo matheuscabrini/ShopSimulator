@@ -11,6 +11,7 @@ import java.net.Socket;
 import java.security.MessageDigest;
 import java.util.List;
 
+// Realiza as operações de comunicação com o servidor
 public class Client {
 
 	private Socket clientSocket;
@@ -24,7 +25,7 @@ public class Client {
 		output.flush(); // flush no header da stream
 		input = new ObjectInputStream(clientSocket.getInputStream());	
 		
-		sendRequest(CommunicationProtocol.HANDSHAKE);
+		sendRequest(CommunicationProtocol.HANDSHAKE); // para validar a conexão
 	}
 	
 	// Protocolo de comunicao:
@@ -38,9 +39,10 @@ public class Client {
 	
 	public void closeConnection() throws IOException {
 		sendRequest(CommunicationProtocol.END);
-		output.close();
+		output.close(); // automaticamente fecha as outras
 	}
 	
+	// Manda cadastro de novo user para o server
 	public ReturnValues signUp(String name, String address, String phone, 
 			String email, String ID, String pass) throws Exception {
 		

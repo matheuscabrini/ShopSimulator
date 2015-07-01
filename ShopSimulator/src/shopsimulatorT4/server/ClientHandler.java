@@ -12,6 +12,8 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+// Classe que é instanciada pelo ShopManager para lidar com cada
+// client que conecta no servidor
 class ClientHandler implements Runnable {
 
 	private Socket client;
@@ -30,7 +32,7 @@ class ClientHandler implements Runnable {
 		haltFlag = false;
 	}
 	
-	// Protocolo de comunição:
+	// Protocolo de comunicação:
 	public void sendResponse(byte res) throws IOException {
 		output.writeByte(res); 
 		output.flush();
@@ -149,6 +151,7 @@ class ClientHandler implements Runnable {
 	// Metodo para enviar ao client lista de produtos
 	private void sendProducts() {
 		try {
+			output.reset(); // para não mandar a mesma lista, da mesma referência
 			ArrayList<Product> list = (ArrayList<Product>) shopMan.getProducts();
 			output.writeObject(list);
 			output.flush();

@@ -20,7 +20,9 @@ import shopsimulatorT4.shared.ShoppingCart;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 
-
+// Gerencia as operações feitas sobre o sistema da loja: compras e requisições feitas 
+// por clients pela rede; recupera e escreve os dados nos arquivos .csv; reestoque de produtos e 
+// cadastro de usuários e requisições.
 public class ShopManager {
 
 	private static int SERVER_PORT; // setado no construtor privado

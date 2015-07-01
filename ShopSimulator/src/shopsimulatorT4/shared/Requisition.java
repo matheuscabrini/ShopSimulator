@@ -1,6 +1,5 @@
 package shopsimulatorT4.shared;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Observable;
@@ -19,13 +18,13 @@ import shopsimulatorT4.server.ShopManager;
 
 // Requisição que um client pode realizar a fim de que seja notificado, via email,
 // quando o estoque de um certo produto for reposto.
+@SuppressWarnings("serial")
 public class Requisition extends Record implements Observer, Serializable {
 
 	// Dados necessários para poder notificar o usuário
 	int prodCode = 0;
 	String userEmail = "";
 	String userName = "";
-	int amountNeeded = 0; // quantia do produto desejada pelo usuário 
 	
 	public Requisition() {}; // usado por ShopManager
 	
@@ -40,21 +39,19 @@ public class Requisition extends Record implements Observer, Serializable {
 	@Override
 	public void update(Observable product, Object arg) {
 		Product prod = (Product) product; 
-		
-		// checando se há a quantidade desejada pelo usuário
-		//if (prod.getAmount() >= amountNeeded)
-		sendEmail(prod.getName());
 
-		// Como a a notificação foi realizada, devemos 
-		// remover esta requisition do sistema
+		// Se conseguirmos enviar o email, devemos remover esta 
+		// requisition do sistema, bem como o observer do produto
 		try {
+			sendEmail(prod.getName());
 			ShopManager.getInstance().removeRequisition(this);
-		} catch (IOException e) {
+			prod.deleteObserver(this);
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	private void sendEmail(String prodName) {
+	private void sendEmail(String prodName) throws MessagingException {
 		String from = "noreply.shop.bot"; // gmail do servidor
 		String pass = "shop.bot"; // senha do gmail
 		
@@ -70,24 +67,20 @@ public class Requisition extends Record implements Observer, Serializable {
 		Session session = Session.getDefaultInstance(properties);
 		MimeMessage message = new MimeMessage(session);
 		
-		try {
-			message.setFrom(new InternetAddress(from));
-			message.addRecipient(Message.RecipientType.TO, 
-		    			new InternetAddress(userEmail));
-	    	message.setSubject(prodName + " is now available!");
-	    	message.setText("Hello "+userName+","
-	    			+ "\n\nYou can now buy \""+prodName+"\" from our shop!"
-	    			+ "\nMake sure to check it out later.\nThanks!"
-	    			+ "\n\n----------\nThis is an automated message.");
+		message.setFrom(new InternetAddress(from));
+		message.addRecipient(Message.RecipientType.TO, 
+	    			new InternetAddress(userEmail));
+    	message.setSubject(prodName + " is now available!");
+    	message.setText("Hello "+userName+","
+    			+ "\n\nYou can now buy \""+prodName+"\" from our shop!"
+    			+ "\nMake sure to check it out later.\nThanks!"
+    			+ "\n\n----------\nThis is an automated message.");
 
-	    	// Enviando mensagem
-	    	Transport transport = session.getTransport("smtp");
-	    	transport.connect("smtp.gmail.com", from, pass);
-	    	transport.sendMessage(message, message.getAllRecipients());
-	    	transport.close();
-	    } catch (MessagingException e) {
-	    	e.printStackTrace();
-	    }		
+    	// Enviando mensagem
+    	Transport transport = session.getTransport("smtp");
+    	transport.connect("smtp.gmail.com", from, pass);
+    	transport.sendMessage(message, message.getAllRecipients());
+    	transport.close();
 	}
 	
 	@Override
@@ -97,7 +90,6 @@ public class Requisition extends Record implements Observer, Serializable {
 		dataList.add(""+prodCode);
 		dataList.add(userEmail);
 		dataList.add(userName);
-		dataList.add(""+amountNeeded);
 
 		String[] retDataList = dataList.toArray(new String[dataList.size()]);
 		return retDataList;
@@ -106,17 +98,15 @@ public class Requisition extends Record implements Observer, Serializable {
 	@Override
 	public void setData(String[] dataList) {
 		int i = 0;
-		prodCode = Integer.parseInt(dataList[i]);
+		prodCode = Integer.parseInt(dataList[i++]);
 		userEmail = dataList[i++];
 		userName = dataList[i++];
-		amountNeeded = Integer.parseInt(dataList[i]);
 	}
 
 	// Getters:
 	public int getProductCode() {return prodCode;}
 	public String getUserEmail() {return userEmail;}
 	public String getUserName() {return userName;}
-	public int getAmountNeeded() {return amountNeeded;}
 	
 	// equals() é utilizado para remover Requisition do sistema em ShopManager
 	// e para adicioná-la também
@@ -138,7 +128,6 @@ public class Requisition extends Record implements Observer, Serializable {
 	// Para debug
 	@Override
 	public String toString() {
-		return "prodCode: "+prodCode+"\nuserMail: "+userEmail+"\nuserName: "+userName
-				+"\namount needed: "+amountNeeded+"\n";
+		return "prodCode: "+prodCode+"\nuserMail: "+userEmail+"\nuserName: "+userName+"\n";
 	}
 }

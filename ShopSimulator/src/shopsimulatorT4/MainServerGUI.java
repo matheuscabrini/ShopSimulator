@@ -234,10 +234,6 @@ public class MainServerGUI extends Application{
         		new TableColumn<Requisition, Integer>("Code");
         codeCol.setCellValueFactory(new PropertyValueFactory<>("productCode"));
         
-        TableColumn<Requisition, Integer> amountCol = 
-        		new TableColumn<Requisition, Integer>("Amount needed");
-        amountCol.setCellValueFactory(new PropertyValueFactory<>("amountNeeded"));
-        
         TableColumn<Requisition, String> nameCol = 
         		new TableColumn<Requisition, String>("Name");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("userName"));
@@ -247,7 +243,7 @@ public class MainServerGUI extends Application{
         emailCol.setCellValueFactory(new PropertyValueFactory<>("userEmail"));    
         
         TableColumn productCol = new TableColumn<>("Requested product");
-        productCol.getColumns().addAll(codeCol, amountCol);
+        productCol.getColumns().addAll(codeCol);
         
         TableColumn userCol = new TableColumn<>("Requester");
         userCol.getColumns().addAll(nameCol, emailCol);
@@ -322,6 +318,7 @@ public class MainServerGUI extends Application{
 		vbox.setAlignment(Pos.CENTER);
 		vbox.setPadding(new Insets(10, 10, 10, 10));
 		
+		productStage.setWidth(400);
 		productStage.setScene(new Scene(vbox));
 		productStage.initModality(Modality.APPLICATION_MODAL);
 		productStage.show();
@@ -376,6 +373,7 @@ public class MainServerGUI extends Application{
 		vbox.setAlignment(Pos.CENTER);
 		vbox.setPadding(new Insets(10, 10, 10, 10));
 		
+		updateProdStage.setWidth(400);
 		updateProdStage.setScene(new Scene(vbox));
 		updateProdStage.initModality(Modality.APPLICATION_MODAL); // pra nao poder sair desta tela
 		updateProdStage.show();

@@ -7,6 +7,7 @@ import java.util.Iterator;
 
 // Um carrinho de compras, que contém as compras realizadas pelo usuário além
 // de suas requisições por notificação no reestoque de produto indisponível
+@SuppressWarnings("serial")
 public class ShoppingCart implements Serializable {
 	
 	// Conjunto de dados necessários para representar uma compra:
@@ -51,7 +52,7 @@ public class ShoppingCart implements Serializable {
 	}
 	
 	public boolean isEmpty() {
-		return purchaseList.isEmpty();
+		return purchaseList.isEmpty() && reqList.isEmpty();
 	}
 	
 	// Retorna preço total da compra

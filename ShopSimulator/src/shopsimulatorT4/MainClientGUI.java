@@ -12,8 +12,8 @@ import shopsimulatorT4.client.ReturnValues;
 import shopsimulatorT4.shared.Product;
 import shopsimulatorT4.shared.Requisition;
 import shopsimulatorT4.shared.ShoppingCart;
+
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -44,14 +44,9 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-// TODO resolver o problema de no client nao dar refresh na lista
-// TODO falta testar o envio do carrinho só com as requisitions, ou seja,
-// mandar produtos que no servidor nao tem, ai recebe sinal de falha, e manda reqs pra esses prods
-// TODO acertar o width das janelas
-
 public class MainClientGUI extends Application {
 
-	Client client; // realiza operacoes com o servidor da loja
+	static Client client; // realiza operacoes com o servidor da loja
 	static String serverIp;
 	static int serverPort;
 	ObservableList<Product> productList; // mais recente lista de produtos obtida do servidor
@@ -64,17 +59,16 @@ public class MainClientGUI extends Application {
     TableView<ShoppingCart.Purchase> cartTable; // tabela com dados do carrinho de compras
 
     String iconPath = "resources/icon3.png";
-	
+	    
 	public static void main(String[] args) {
 		if (args.length == 2) {
 			serverIp = args[0];
 			serverPort = Integer.parseInt(args[1]);
+			
 			launch(args);
 		}
 		else 
-			System.out.println("usage: <server ip> <server port>");
-		
-		launch(args);
+			System.out.println("usage: <server ip> <server port>");		
 	}
 	
 	@Override
@@ -210,6 +204,7 @@ public class MainClientGUI extends Application {
 		vbox.setAlignment(Pos.CENTER);
 		vbox.setPadding(new Insets(10, 10, 10, 10));
 		
+		signUpStage.setWidth(300);
 		signUpStage.setScene(new Scene(vbox));
 		signUpStage.initModality(Modality.APPLICATION_MODAL); // pra nao poder sair desta tela
 		signUpStage.show();
@@ -268,12 +263,12 @@ public class MainClientGUI extends Application {
         	exitProgram();
         });
 
-        Menu menuCartAdd = new Menu("Add product...");
+        Menu menuCartAdd = new Menu("Add product to cart...");
         menuCartAdd.setOnAction(ev -> {
         	addProductScreen();
         });
         
-        Menu menuCartConfirm = new Menu("Confirm purchases...");
+        Menu menuCartConfirm = new Menu("Confirm purchases/requisitions...");
         menuCartConfirm.setOnAction(ev -> {
         	cartConfirmScreen();
         });
@@ -287,44 +282,43 @@ public class MainClientGUI extends Application {
 	// Inicialização (e atualização, quando necessário) da tabela de produtos
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	void initProductTable() {
-		Platform.runLater(()-> {
-			// Obtendo os produtos do servidor:
-			try {
-				ArrayList<Product> temp = (ArrayList<Product>) client.getProducts();
-				productList = FXCollections.observableArrayList(temp);
-			} catch (Exception e) {
-				showExceptionDialog("Error while fetching product list from server.", e);
-				return;
-			}
-			
-			prodTable.setPlaceholder(new Label("No products to show"));
-			
-	        TableColumn<Product, Integer> codeCol = new TableColumn<Product, Integer>("Code");
-	        codeCol.setCellValueFactory(new PropertyValueFactory<>("code"));
-	        
-	        TableColumn<Product, String> nameCol = new TableColumn<Product, String>("Name");
-	        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
-	        
-	        TableColumn<Product, String> expCol = new TableColumn<Product, String>("Expiration Date");
-	        expCol.setCellValueFactory(new PropertyValueFactory<>("expDate"));
-	        
-	        TableColumn<Product, String> priceCol = new TableColumn<Product, String>("Price ($)");        
-	        priceCol.setCellValueFactory(new PropertyValueFactory<>("price"));
-	        
-	        TableColumn<Product, String> providerCol = new TableColumn<Product, String>("Provider");
-	        providerCol.setCellValueFactory(new PropertyValueFactory<>("provider"));
-	        
-	        TableColumn<Product, Integer> amountCol = new TableColumn<Product, Integer>("Amount");
-	        amountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
-	        
-	        // Associando a lista de produtos à tabela:
-	        prodTable.setItems(productList);
-	        prodTable.setEditable(false);
-	        if (prodTable.getColumns().isEmpty())
-	        	prodTable.getColumns().addAll(codeCol, nameCol, expCol, priceCol, providerCol, amountCol);
-	        ((TableColumn) prodTable.getColumns().get(0)).setVisible(false); // update na tabela
-	        ((TableColumn) prodTable.getColumns().get(0)).setVisible(true);
-		});
+		// Obtendo os produtos do servidor:
+		ArrayList<Product> temp = null;
+		try {
+			temp = (ArrayList<Product>) client.getProducts();
+			productList = FXCollections.observableArrayList(temp);
+		} catch (Exception e) {
+			showExceptionDialog("Error while fetching product list from server.", e);
+			return;
+		}
+		
+		prodTable.setPlaceholder(new Label("No products to show"));
+		
+        TableColumn<Product, Integer> codeCol = new TableColumn<Product, Integer>("Code");
+        codeCol.setCellValueFactory(new PropertyValueFactory<>("code"));
+        
+        TableColumn<Product, String> nameCol = new TableColumn<Product, String>("Name");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        
+        TableColumn<Product, String> expCol = new TableColumn<Product, String>("Expiration Date");
+        expCol.setCellValueFactory(new PropertyValueFactory<>("expDate"));
+        
+        TableColumn<Product, String> priceCol = new TableColumn<Product, String>("Price ($)");        
+        priceCol.setCellValueFactory(new PropertyValueFactory<>("price"));
+        
+        TableColumn<Product, String> providerCol = new TableColumn<Product, String>("Provider");
+        providerCol.setCellValueFactory(new PropertyValueFactory<>("provider"));
+        
+        TableColumn<Product, Integer> amountCol = new TableColumn<Product, Integer>("Amount");
+        amountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
+        
+        // Associando a lista de produtos à tabela:
+        prodTable.setItems(productList);
+        prodTable.setEditable(false);
+        if (prodTable.getColumns().isEmpty())
+        	prodTable.getColumns().addAll(codeCol, nameCol, expCol, priceCol, providerCol, amountCol);
+        ((TableColumn) prodTable.getColumns().get(0)).setVisible(false); // update na tabela
+        ((TableColumn) prodTable.getColumns().get(0)).setVisible(true);
 	}
 
 	// Inicialização (e atualização, quando necessário) da tabela 
@@ -363,7 +357,7 @@ public class MainClientGUI extends Application {
 	// Tela onde se adiciona um produto no carrinho de compras
 	void addProductScreen() {
 		Stage addProductStage = new Stage();
-		addProductStage.setTitle("Add product to shopping cart");
+		addProductStage.setTitle("Add product to cart");
 		
 		TextField codeField = new TextField();
 		codeField.setPromptText("Product code");
@@ -423,6 +417,7 @@ public class MainClientGUI extends Application {
 		vbox.setAlignment(Pos.CENTER);
 		vbox.setPadding(new Insets(10, 10, 10, 10));
 		
+		addProductStage.setWidth(400);
 		addProductStage.setScene(new Scene(vbox));
 		addProductStage.initModality(Modality.APPLICATION_MODAL); // pra nao poder sair desta tela
 		addProductStage.show();
@@ -467,7 +462,7 @@ public class MainClientGUI extends Application {
 
 		// Se a transação deu certo:
 		if (failList == null) {
-			showSuccessDialog("Transaction completed! :)");
+			showSuccessDialog("Your purchases and requisitions were sucessfully sent! :)");
 			return;
 		}
 		
@@ -488,7 +483,7 @@ public class MainClientGUI extends Application {
 	    Alert alert = new Alert(AlertType.CONFIRMATION);
 	    alert.setTitle("Unavailable products");
 	    alert.setContentText("The following products were unavailable"
-	    		+ "in the server at the moment of purchase. Click OK and"
+	    		+ "in the server at the moment of purchase. Click OK and "
 	    		+ "you will be notified via email when they are restocked.");
 		
 	    TextArea textArea = new TextArea(builder.toString());
@@ -561,7 +556,7 @@ public class MainClientGUI extends Application {
 		alert.setHeaderText("This amount of "+productName+" is unavailable in our store"
 				+ " at the moment...");
 		alert.setContentText("Would you like to be notified via email when the product"
-				+ " is restocked? This request will be activated when you confirm your purchases.");
+				+ " is restocked? This request will be activated when you confirm it in the Actions menu.");
 		
 		Optional<ButtonType> response = alert.showAndWait();
 		if (response.get() == ButtonType.OK) {
